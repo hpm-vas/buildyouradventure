@@ -184,12 +184,17 @@ export class StoryOverviewComponent implements OnInit {
           });
         }
 
+        // Reset depth when entering a new chapter
+        const enteredNewChapter = currentChapter !== null && chapterKey !== currentChapter;
+        const effectiveDepth = enteredNewChapter ? 0 : depth;
+        const effectiveIsChildOfBranch = enteredNewChapter ? false : isChildOfBranch;
+
         // Check if this chapter is collapsed
         const isChapterCollapsed = collapsedChapters.has(chapterKey);
 
         // Only add the node if its chapter is not collapsed
         if (!isChapterCollapsed) {
-          result.push({ type: 'node', treeNode, depth, isChildOfBranch, chapterKey });
+          result.push({ type: 'node', treeNode, depth: effectiveDepth, isChildOfBranch: effectiveIsChildOfBranch, chapterKey });
         }
 
         // Determine how to recurse into children
@@ -202,20 +207,20 @@ export class StoryOverviewComponent implements OnInit {
             child => child.node.id === treeNode.node.explorationHub?.summaryNodeId
           );
           if (summaryChild) {
-            flatten([summaryChild], depth, false, chapterKey);
+            flatten([summaryChild], effectiveDepth, false, chapterKey);
           }
         } else if (isPastDecision) {
           // Past decision: only follow visited children (collapsed view)
           const visitedChildren = treeNode.children.filter(child => child.isVisited);
           if (visitedChildren.length > 0) {
-            flatten(visitedChildren, depth, false, chapterKey);
+            flatten(visitedChildren, effectiveDepth, false, chapterKey);
           }
         } else if (hasBranch || isHub) {
           // Current/future branch or hub: show all children indented
-          flatten(treeNode.children, depth + 1, true, chapterKey);
+          flatten(treeNode.children, effectiveDepth + 1, true, chapterKey);
         } else {
           // Linear node: continue at same depth
-          flatten(treeNode.children, depth, false, chapterKey);
+          flatten(treeNode.children, effectiveDepth, false, chapterKey);
         }
       }
     };

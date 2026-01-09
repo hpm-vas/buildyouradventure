@@ -909,7 +909,7 @@
         "image": null,
         "audio": null
       },
-      "openQuestion": "Was packen Odo und Largo für ihre Expedition zum alten Wachthügel ein?",
+      "openQuestion": { "prompt": "Was packen Odo und Largo für ihre Expedition zum alten Wachthügel ein?" },
       "choices": [
         {
           "id": "vorbereitungen-hub",

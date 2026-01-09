@@ -55,7 +55,23 @@ sometimes mischievous.
 - **Mirabella (Mutter)**: Dunkle Locken, wissender Blick, lacht viel, Mehlstaub an der Schürze
 - **Esmeralda (17)**: Älteste, vernünftig, praktisch, ordentlich
 - **Dodo & Dora (14)**: Zwillinge, identisch, verschmitzt, immer zusammen
-- **Largo (10)**: Rundlich, immer essend oder ans Essen denkend
+- **Largo (10)**: Siehe detaillierter Prompt unten
+
+### Largo (Odos Bruder, 10 Jahre)
+
+```
+Young hobbit boy, 10 years old, round friendly face with rosy cheeks.
+Honey-colored curly hair, slightly messy. Warm brown eyes with
+unexpected sharpness behind the friendly expression. Pudgy, comfortable
+build - typical hobbit proportions. Often has crumbs on his vest or
+flour dust on his clothes. Wears earth-toned clothing - brown vest
+with many pockets, cream-colored shirt, short trousers. One vest
+pocket always bulging with snacks. Bare feet with curly hair on top.
+Expression: good-natured, food-focused, but with moments of surprising
+perceptiveness. Often seen eating or reaching for food.
+```
+
+**Besondere Requisiten**: Streichholzdose mit eingeritztem Pilz, kleine Proviantbeutel
 
 ---
 

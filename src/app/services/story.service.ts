@@ -517,6 +517,11 @@ export class StoryService {
         await this.refreshState();
       }
     }
+
+    // Navigate to next node (first choice) after submitting answer
+    if (current.choices.length > 0) {
+      this.currentNodeId.set(current.choices[0].nextNode);
+    }
   }
 
   /**

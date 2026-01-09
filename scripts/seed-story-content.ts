@@ -117,6 +117,22 @@ const nodeChapterMap: Record<string, { akt: number; teil: string; kapitel: numbe
   'largo-halbe-wahrheit': { akt: 1, teil: 'Prolog', kapitel: 5 },
   'largo-ablenkung': { akt: 1, teil: 'Prolog', kapitel: 5 },
   'largo-vertrauen': { akt: 1, teil: 'Prolog', kapitel: 5 },
+
+  // Prolog-6: Largo's trust and Belladonna's secret
+  'odo-zeigt-largo': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'die-nacht': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'die-traeume': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'erwachen': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'durch-den-gang': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'durch-die-kueche': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'die-erste-kammer': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'die-lampe-holen': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'die-zweite-kammer-largo': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'das-elbenwurz': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'die-enthuellung': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'der-plan': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'fruehstueck': { akt: 1, teil: 'Prolog', kapitel: 6 },
+  'vorbereitungen-hub': { akt: 1, teil: 'Prolog', kapitel: 6 },
 };
 
 async function seedStoryContent() {

@@ -1,0 +1,111 @@
+.prompt-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  min-width: 100px;
+  min-height: 80px;
+  border: 2px solid #8b4513;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #f5e6d3, #e8d4b8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.15);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-4px);
+    box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.2);
+    border-color: #a0522d;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  &.selected {
+    background: linear-gradient(145deg, #228b22, #1a6b1a);
+    border-color: #2ea62e;
+    color: #fff;
+
+    .card-label {
+      color: #fff;
+    }
+
+    .card-icon {
+      filter: brightness(1.2);
+    }
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.card-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.card-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #5d3a1a;
+  text-align: center;
+}
+
+.check-mark {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.9rem;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+// Color variants
+.prompt-card.card-brave {
+  &:not(.selected) {
+    border-color: #b8860b;
+    background: linear-gradient(145deg, #fff8dc, #f5deb3);
+  }
+}
+
+.prompt-card.card-cautious {
+  &:not(.selected) {
+    border-color: #4682b4;
+    background: linear-gradient(145deg, #e6f2ff, #cce0f0);
+  }
+}
+
+.prompt-card.card-aggressive {
+  &:not(.selected) {
+    border-color: #8b0000;
+    background: linear-gradient(145deg, #ffe4e1, #f0c8c8);
+  }
+}
+
+.prompt-card.card-mysterious {
+  &:not(.selected) {
+    border-color: #4b0082;
+    background: linear-gradient(145deg, #e6e6fa, #d8bfd8);
+  }
+}
+
+.prompt-card.card-compassionate {
+  &:not(.selected) {
+    border-color: #2e8b57;
+    background: linear-gradient(145deg, #e0ffe0, #c8f0c8);
+  }
+}
+
+.prompt-card.card-cunning {
+  &:not(.selected) {
+    border-color: #daa520;
+    background: linear-gradient(145deg, #fffacd, #f0e68c);
+  }
+}

@@ -42,8 +42,21 @@ export interface Media {
   audio: string | null;
 }
 
+// Prompt card for guided free-text responses
+export interface PromptCard {
+  id: string;
+  label: string;          // Display name (e.g., "Mutig", "Vorsichtig")
+  description?: string;   // Optional tooltip/flavor text
+  icon?: string;          // Optional emoji or icon
+  colorClass?: string;    // Optional CSS class for styling
+}
+
 export interface OpenQuestion {
   prompt: string;
+  cards?: PromptCard[];   // Available tone cards (if any)
+  minCards?: number;      // Minimum cards to select (default 0)
+  maxCards?: number;      // Maximum cards to select (default unlimited)
+  requireText?: boolean;  // Whether free text is required (default true)
 }
 
 export interface ExplorationHub {
@@ -100,6 +113,8 @@ export interface StoryEvent {
   diceTotal?: number;         // Sum including modifier
   skillCheckSuccess?: boolean; // Whether the check passed
   diceManualOverride?: boolean; // Whether GM manually set the values
+  // Prompt card fields
+  selectedCardIds?: string[]; // IDs of selected prompt cards
 }
 
 export interface StoryState {

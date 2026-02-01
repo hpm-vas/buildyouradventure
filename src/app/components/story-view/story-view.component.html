@@ -192,6 +192,16 @@
                               }
                             </div>
                           }
+                          @if (entry.selectedCardIds && entry.selectedCardIds.length > 0 && entry.node.openQuestion?.cards; as historyCards) {
+                            <div class="history-selected-cards">
+                              <span class="cards-label">Gewählter Ton:</span>
+                              @for (cardId of entry.selectedCardIds; track cardId) {
+                                @if (getCardLabel(historyCards, cardId); as label) {
+                                  <span class="selected-card-badge">{{ label }}</span>
+                                }
+                              }
+                            </div>
+                          }
                         </div>
                       }
                     </div>
@@ -213,17 +223,43 @@
             } @else if (isReaderMode()) {
               <p class="reader-waiting-text">Warte auf die Antwort...</p>
             } @else {
-              <textarea
-                class="answer-input"
-                [(ngModel)]="openAnswer"
-                placeholder="Schreibe deine Antwort..."
-                rows="3"
-                [disabled]="isChoosing()"
-              ></textarea>
+              <!-- Prompt cards (if defined) -->
+              @if (node.openQuestion.cards && node.openQuestion.cards.length > 0) {
+                <div class="prompt-cards-section">
+                  <p class="cards-instruction">
+                    Wähle einen Ton für deine Antwort
+                    @if (node.openQuestion.minCards && node.openQuestion.minCards > 0) {
+                      <span class="cards-requirement">(mindestens {{ node.openQuestion.minCards }})</span>
+                    }
+                  </p>
+                  <div class="prompt-cards-grid">
+                    @for (card of node.openQuestion.cards; track card.id) {
+                      <app-prompt-card
+                        [card]="card"
+                        [selected]="isCardSelected(card.id)"
+                        [disabled]="isCardSelectionDisabled(card.id)"
+                        (toggle)="onCardToggle(card)"
+                      />
+                    }
+                  </div>
+                </div>
+              }
+
+              <!-- Text input (if required or no cards) -->
+              @if (node.openQuestion.requireText !== false) {
+                <textarea
+                  class="answer-input"
+                  [(ngModel)]="openAnswer"
+                  placeholder="Schreibe deine Antwort..."
+                  rows="3"
+                  [disabled]="isChoosing()"
+                ></textarea>
+              }
+
               <button
                 class="submit-btn"
                 (click)="onOpenAnswerSubmit(node.openQuestion)"
-                [disabled]="isChoosing() || !openAnswer().trim()"
+                [disabled]="isChoosing() || !canSubmitAnswer()"
               >
                 Antwort senden
               </button>

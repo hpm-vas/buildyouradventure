@@ -8,12 +8,13 @@ import { AdminComponent } from '../admin/admin.component';
 import { StoryOverviewComponent } from '../story-overview/story-overview.component';
 import { MistRevealComponent } from '../mist-reveal/mist-reveal.component';
 import { DiceRollComponent } from '../dice-roll/dice-roll.component';
-import { Choice, OpenQuestion, DiceResult } from '../../models/story.model';
+import { PromptCardComponent } from '../prompt-card/prompt-card.component';
+import { Choice, OpenQuestion, DiceResult, PromptCard } from '../../models/story.model';
 
 @Component({
   selector: 'app-story-view',
   standalone: true,
-  imports: [CommonModule, FormsModule, AudioPlayerComponent, InventoryComponent, AdminComponent, StoryOverviewComponent, MistRevealComponent, DiceRollComponent],
+  imports: [CommonModule, FormsModule, AudioPlayerComponent, InventoryComponent, AdminComponent, StoryOverviewComponent, MistRevealComponent, DiceRollComponent, PromptCardComponent],
   templateUrl: './story-view.component.html',
   styleUrl: './story-view.component.scss'
 })
@@ -59,7 +60,25 @@ export class StoryViewComponent implements AfterViewInit, OnDestroy {
   // Dice roll state
   pendingSkillCheck = signal<Choice | null>(null);
 
+  // Prompt card state
+  selectedCardIds = signal<Set<string>>(new Set());
+
   readonly imagePosition = computed(() => this.currentNode()?.media?.imagePosition ?? 'top');
+
+  // Check if minimum cards requirement is met
+  readonly canSubmitAnswer = computed(() => {
+    const node = this.currentNode();
+    if (!node?.openQuestion) return false;
+
+    const cards = node.openQuestion.cards || [];
+    const minCards = node.openQuestion.minCards ?? 0;
+    const requireText = node.openQuestion.requireText !== false; // default true
+
+    const hasEnoughCards = cards.length === 0 || this.selectedCardIds().size >= minCards;
+    const hasText = !requireText || this.openAnswer().trim().length > 0;
+
+    return hasEnoughCards && hasText;
+  });
 
   readonly paragraphsBeforeImage = computed(() => {
     const node = this.currentNode();
@@ -199,12 +218,53 @@ export class StoryViewComponent implements AfterViewInit, OnDestroy {
 
   async onOpenAnswerSubmit(question: OpenQuestion): Promise<void> {
     const answer = this.openAnswer().trim();
-    if (!answer) return;
+    const requireText = question.requireText !== false;
+
+    // Validate: if text required, must have answer
+    if (requireText && !answer) return;
 
     this.isChoosing.set(true);
-    await this.storyService.submitOpenAnswer(question, answer);
+    const selectedCards = [...this.selectedCardIds()];
+    await this.storyService.submitOpenAnswer(question, answer, selectedCards);
     this.openAnswer.set('');
+    this.selectedCardIds.set(new Set()); // Clear selected cards
     this.isChoosing.set(false);
+  }
+
+  onCardToggle(card: PromptCard): void {
+    const current = this.selectedCardIds();
+    const newSet = new Set(current);
+    const node = this.currentNode();
+    const maxCards = node?.openQuestion?.maxCards ?? 99;
+
+    if (newSet.has(card.id)) {
+      // Deselect
+      newSet.delete(card.id);
+    } else {
+      // Select (if under max)
+      if (newSet.size < maxCards) {
+        newSet.add(card.id);
+      }
+    }
+
+    this.selectedCardIds.set(newSet);
+  }
+
+  isCardSelected(cardId: string): boolean {
+    return this.selectedCardIds().has(cardId);
+  }
+
+  isCardSelectionDisabled(cardId: string): boolean {
+    const node = this.currentNode();
+    const maxCards = node?.openQuestion?.maxCards ?? 99;
+    const selected = this.selectedCardIds();
+
+    // Disabled if at max and this card isn't selected
+    return selected.size >= maxCards && !selected.has(cardId);
+  }
+
+  getCardLabel(cards: PromptCard[] | undefined, cardId: string): string | null {
+    return cards?.find(c => c.id === cardId)?.label ?? null;
   }
 
   onOpenStoryOverview(): void {

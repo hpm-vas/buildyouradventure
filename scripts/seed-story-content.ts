@@ -29,7 +29,13 @@ interface StoryNode {
     audio: string | null;
   };
   choices: Choice[];
-  openQuestion?: { prompt: string };
+  openQuestion?: {
+    prompt: string;
+    cards?: PromptCardInput[];
+    minCards?: number;
+    maxCards?: number;
+    requireText?: boolean;
+  };
   teaser?: string;
   grantsItems?: string[];
   explorationHub?: {
@@ -55,6 +61,14 @@ interface Choice {
     modifier?: number;
     label?: string;
   };
+}
+
+interface PromptCardInput {
+  id: string;
+  label: string;
+  description?: string;
+  icon?: string;
+  colorClass?: string;
 }
 
 interface InventoryItem {
@@ -218,6 +232,7 @@ async function seedStoryContent() {
   // Clear existing content for this story (fresh seed)
   console.log('\nClearing existing story content...');
 
+  await supabase.from('prompt_cards').delete().eq('story_id', storyId);
   await supabase.from('story_choices').delete().eq('story_id', storyId);
   await supabase.from('story_nodes').delete().eq('story_id', storyId);
   await supabase.from('story_items').delete().eq('story_id', storyId);
@@ -238,6 +253,9 @@ async function seedStoryContent() {
       media_image_position: node.media?.imagePosition || null,
       media_audio: node.media?.audio || null,
       open_question_prompt: node.openQuestion?.prompt || null,
+      open_question_min_cards: node.openQuestion?.minCards ?? 0,
+      open_question_max_cards: node.openQuestion?.maxCards ?? 99,
+      open_question_require_text: node.openQuestion?.requireText ?? true,
       exploration_hub_required_nodes: node.explorationHub?.requiredNodes || null,
       exploration_hub_summary_node_id: node.explorationHub?.summaryNodeId || null,
       teaser: node.teaser || null,
@@ -321,6 +339,50 @@ async function seedStoryContent() {
     console.log(`  Inserted ${choices.length} choices`);
   } else {
     console.log('  No choices to insert');
+  }
+
+  // Insert prompt cards
+  console.log('\nInserting prompt cards...');
+  const promptCards: Array<{
+    id: string;
+    story_id: string;
+    node_id: string;
+    label: string;
+    description: string | null;
+    icon: string | null;
+    color_class: string | null;
+    sort_order: number;
+  }> = [];
+
+  Object.values(storyData.nodes).forEach(node => {
+    if (node.openQuestion?.cards) {
+      node.openQuestion.cards.forEach((card, index) => {
+        promptCards.push({
+          id: card.id,
+          story_id: storyId,
+          node_id: node.id,
+          label: card.label,
+          description: card.description || null,
+          icon: card.icon || null,
+          color_class: card.colorClass || null,
+          sort_order: index
+        });
+      });
+    }
+  });
+
+  if (promptCards.length > 0) {
+    const { error: cardsError } = await supabase
+      .from('prompt_cards')
+      .insert(promptCards);
+
+    if (cardsError) {
+      console.error('Error inserting prompt cards:', cardsError);
+      process.exit(1);
+    }
+    console.log(`  Inserted ${promptCards.length} prompt cards`);
+  } else {
+    console.log('  No prompt cards to insert');
   }
 
   // Insert items

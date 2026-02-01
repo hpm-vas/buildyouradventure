@@ -107,7 +107,9 @@ export class StoryService {
         diceRolls: event.dice_rolls,
         diceTotal: event.dice_total,
         skillCheckSuccess: event.skill_check_success,
-        diceManualOverride: event.dice_manual_override
+        diceManualOverride: event.dice_manual_override,
+        // Prompt card data
+        selectedCardIds: event.selected_card_ids
       };
     });
   });
@@ -604,18 +606,37 @@ export class StoryService {
   /**
    * Submit answer to open question
    */
-  async submitOpenAnswer(question: OpenQuestion, answer: string): Promise<void> {
+  async submitOpenAnswer(
+    question: OpenQuestion,
+    answer: string,
+    selectedCardIds?: string[]
+  ): Promise<void> {
     const current = this.currentNode();
     const storyMeta = this.currentStoryMeta();
     if (!current || !storyMeta) return;
+
+    // Build answer string with card labels if cards were selected
+    let fullAnswer = `[${question.prompt}]`;
+    if (selectedCardIds && selectedCardIds.length > 0 && question.cards) {
+      const cardLabels = selectedCardIds
+        .map(id => question.cards!.find(c => c.id === id)?.label)
+        .filter(Boolean);
+      if (cardLabels.length > 0) {
+        fullAnswer += ` [Tone: ${cardLabels.join(', ')}]`;
+      }
+    }
+    if (answer.trim()) {
+      fullAnswer += ` ${answer}`;
+    }
 
     // Record event to Supabase
     if (!this.isReaderMode()) {
       const eventResult = await this.supabase.recordEvent({
         storyId: storyMeta.id,
         nodeId: current.id,
-        answer: `[${question.prompt}] ${answer}`,
-        collectedItems: [...this.collectedItems()]
+        answer: fullAnswer,
+        collectedItems: [...this.collectedItems()],
+        selectedCardIds: selectedCardIds && selectedCardIds.length > 0 ? selectedCardIds : undefined
       });
 
       if (eventResult.success && eventResult.event) {

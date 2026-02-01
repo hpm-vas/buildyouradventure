@@ -1,0 +1,17 @@
+<button
+  class="prompt-card"
+  [class.selected]="selected"
+  [class.disabled]="disabled"
+  [class]="card.colorClass || ''"
+  (click)="onClick()"
+  [disabled]="disabled"
+  [title]="card.description || card.label"
+>
+  @if (card.icon) {
+    <span class="card-icon">{{ card.icon }}</span>
+  }
+  <span class="card-label">{{ card.label }}</span>
+  @if (selected) {
+    <span class="check-mark">✓</span>
+  }
+</button>

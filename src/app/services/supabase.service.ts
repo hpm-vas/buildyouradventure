@@ -35,6 +35,8 @@ export interface DbStoryEvent {
   dice_total?: number;
   skill_check_success?: boolean;
   dice_manual_override?: boolean;
+  // Prompt card fields
+  selected_card_ids?: string[];
 }
 
 export interface DbStoryState {
@@ -351,6 +353,7 @@ export class SupabaseService {
     diceTotal?: number;
     skillCheckSuccess?: boolean;
     diceManualOverride?: boolean;
+    selectedCardIds?: string[];
   }): Promise<{ success: boolean; error?: string; event?: DbStoryEvent }> {
     const user = this.currentUser();
     if (!user || user.role === 'reader') {
@@ -369,6 +372,7 @@ export class SupabaseService {
       dice_total: event.diceTotal ?? null,
       skill_check_success: event.skillCheckSuccess ?? null,
       dice_manual_override: event.diceManualOverride ?? null,
+      selected_card_ids: event.selectedCardIds ?? null,
     });
 
     if (error) {

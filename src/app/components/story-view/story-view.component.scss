@@ -686,6 +686,36 @@
   }
 }
 
+// Selected cards in history
+.history-selected-cards {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+
+  .cards-label {
+    color: #7d5a3a;
+    font-style: italic;
+    margin-right: 0.25rem;
+  }
+
+  .selected-card-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    background: linear-gradient(145deg, #c9a959, #b8963e);
+    color: #3d2914;
+    border-radius: 12px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+  }
+}
+
 // Open question styles
 .open-question {
   margin-top: 1.5rem;
@@ -698,6 +728,31 @@
     color: #5d3a1a;
     text-align: center;
     margin-bottom: 1rem;
+  }
+
+  // Prompt cards section
+  .prompt-cards-section {
+    margin-bottom: 1.25rem;
+
+    .cards-instruction {
+      font-family: 'Lora', serif;
+      font-size: 0.9rem;
+      color: #7d5a3a;
+      text-align: center;
+      margin-bottom: 0.75rem;
+      font-style: italic;
+    }
+  }
+
+  .prompt-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+
+    @media (min-width: 480px) {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
   }
 
   .reader-waiting-text {

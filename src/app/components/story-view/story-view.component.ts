@@ -7,12 +7,13 @@ import { InventoryComponent } from '../inventory/inventory.component';
 import { AdminComponent } from '../admin/admin.component';
 import { StoryOverviewComponent } from '../story-overview/story-overview.component';
 import { MistRevealComponent } from '../mist-reveal/mist-reveal.component';
-import { Choice, OpenQuestion } from '../../models/story.model';
+import { DiceRollComponent } from '../dice-roll/dice-roll.component';
+import { Choice, OpenQuestion, DiceResult } from '../../models/story.model';
 
 @Component({
   selector: 'app-story-view',
   standalone: true,
-  imports: [CommonModule, FormsModule, AudioPlayerComponent, InventoryComponent, AdminComponent, StoryOverviewComponent, MistRevealComponent],
+  imports: [CommonModule, FormsModule, AudioPlayerComponent, InventoryComponent, AdminComponent, StoryOverviewComponent, MistRevealComponent, DiceRollComponent],
   templateUrl: './story-view.component.html',
   styleUrl: './story-view.component.scss'
 })
@@ -55,6 +56,9 @@ export class StoryViewComponent implements AfterViewInit, OnDestroy {
   showAdminPanel = signal<boolean>(false);
   showStoryOverview = signal<boolean>(false);
 
+  // Dice roll state
+  pendingSkillCheck = signal<Choice | null>(null);
+
   readonly imagePosition = computed(() => this.currentNode()?.media?.imagePosition ?? 'top');
 
   readonly paragraphsBeforeImage = computed(() => {
@@ -80,6 +84,13 @@ export class StoryViewComponent implements AfterViewInit, OnDestroy {
   });
 
   async onChoiceClick(choice: Choice): Promise<void> {
+    // Check if this choice has a skill check
+    if (choice.skillCheck && !this.isReaderMode()) {
+      // Show dice roll overlay
+      this.pendingSkillCheck.set(choice);
+      return;
+    }
+
     this.isChoosing.set(true);
     await this.storyService.makeChoice(choice);
     this.openAnswer.set(''); // Clear any leftover open answer
@@ -88,6 +99,27 @@ export class StoryViewComponent implements AfterViewInit, OnDestroy {
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }, 0);
+  }
+
+  async onDiceRollComplete(result: DiceResult): Promise<void> {
+    const choice = this.pendingSkillCheck();
+    if (!choice || !choice.skillCheck) return;
+
+    this.pendingSkillCheck.set(null);
+    this.isChoosing.set(true);
+
+    // Make choice with dice result - the service will use success/failure node
+    await this.storyService.makeChoiceWithDiceRoll(choice, result);
+
+    this.openAnswer.set('');
+    this.isChoosing.set(false);
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }, 0);
+  }
+
+  onDiceRollCancelled(): void {
+    this.pendingSkillCheck.set(null);
   }
 
   onRestart(): void {

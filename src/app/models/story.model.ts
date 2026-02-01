@@ -1,9 +1,32 @@
+// Dice types supported by the skill check system
+export type DiceType = 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20' | 'd100';
+
+// Skill check configuration for a choice
+export interface SkillCheck {
+  diceType: DiceType;
+  diceCount: number;       // Number of dice to roll (e.g., 2 for 2d6)
+  difficulty: number;      // Target number to meet or exceed
+  successNode: string;     // Node ID on success
+  failureNode: string;     // Node ID on failure
+  modifier?: number;       // Bonus/penalty to add to roll
+  label?: string;          // Display label (e.g., "Strength", "Perception")
+}
+
+// Result of a dice roll
+export interface DiceResult {
+  rolls: number[];         // Individual die results
+  total: number;           // Sum of rolls + modifier
+  success: boolean;        // Whether total >= difficulty
+  manualOverride: boolean; // Whether GM manually set the values
+}
+
 export interface Choice {
   id: string;
   text: string;
   nextNode: string;
   grantsItems?: string[];  // Item IDs granted when selecting this choice
   returnsTo?: string;  // After visiting nextNode, return to this node (for exploration hubs)
+  skillCheck?: SkillCheck; // Optional skill check with dice roll
 }
 
 export interface InventoryItem {
@@ -72,6 +95,11 @@ export interface StoryEvent {
   collectedItems?: string[];
   createdAt: string;
   createdBy?: string;
+  // Dice roll fields
+  diceRolls?: number[];       // Individual die results
+  diceTotal?: number;         // Sum including modifier
+  skillCheckSuccess?: boolean; // Whether the check passed
+  diceManualOverride?: boolean; // Whether GM manually set the values
 }
 
 export interface StoryState {

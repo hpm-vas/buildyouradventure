@@ -30,6 +30,11 @@ export interface DbStoryEvent {
   collected_items?: string[];
   created_at: string;
   created_by?: string;
+  // Dice roll fields
+  dice_rolls?: number[];
+  dice_total?: number;
+  skill_check_success?: boolean;
+  dice_manual_override?: boolean;
 }
 
 export interface DbStoryState {
@@ -342,6 +347,10 @@ export class SupabaseService {
     choiceText?: string;
     answer?: string;
     collectedItems?: string[];
+    diceRolls?: number[];
+    diceTotal?: number;
+    skillCheckSuccess?: boolean;
+    diceManualOverride?: boolean;
   }): Promise<{ success: boolean; error?: string; event?: DbStoryEvent }> {
     const user = this.currentUser();
     if (!user || user.role === 'reader') {
@@ -356,6 +365,10 @@ export class SupabaseService {
       answer: event.answer ?? null,
       collected_items: event.collectedItems ?? null,
       created_by: user.id,
+      dice_rolls: event.diceRolls ?? null,
+      dice_total: event.diceTotal ?? null,
+      skill_check_success: event.skillCheckSuccess ?? null,
+      dice_manual_override: event.diceManualOverride ?? null,
     });
 
     if (error) {

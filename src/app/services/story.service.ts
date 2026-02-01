@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { Story, StoryNode, Choice, OpenQuestion, InventoryItem } from '../models/story.model';
+import { Story, StoryNode, Choice, OpenQuestion, InventoryItem, DiceResult } from '../models/story.model';
 import { SupabaseService, DbStoryEvent, DbStoryState, AuthResponse } from './supabase.service';
 
 interface HistoryEntry {
@@ -102,7 +102,12 @@ export class StoryService {
       return {
         node: node || fallbackNode,
         choiceText: event.choice_text || event.answer,
-        wasRealChoice: !!event.choice_id && event.choice_id !== 'continue'
+        wasRealChoice: !!event.choice_id && event.choice_id !== 'continue',
+        // Dice roll data
+        diceRolls: event.dice_rolls,
+        diceTotal: event.dice_total,
+        skillCheckSuccess: event.skill_check_success,
+        diceManualOverride: event.dice_manual_override
       };
     });
   });
@@ -418,6 +423,108 @@ export class StoryService {
         await this.refreshState();
       }
     }
+  }
+
+  /**
+   * Player makes a choice with a dice roll result (for skill checks)
+   */
+  async makeChoiceWithDiceRoll(choice: Choice, diceResult: DiceResult): Promise<void> {
+    const current = this.currentNode();
+    const storyMeta = this.currentStoryMeta();
+    if (!current || !storyMeta || !choice.skillCheck) return;
+
+    // Collect items from this choice
+    this.collectItems(choice.grantsItems);
+
+    // Determine target node based on dice result
+    const targetNode = diceResult.success
+      ? choice.skillCheck.successNode
+      : choice.skillCheck.failureNode;
+
+    // Handle exploration hub
+    if (choice.returnsTo) {
+      this.markNodeExplored(targetNode);
+      this.pendingReturn.set(choice.returnsTo);
+    }
+
+    // Update current node
+    this.currentNodeId.set(targetNode);
+
+    // Collect items from the next node
+    const nextNode = this.story()?.nodes[targetNode];
+    if (nextNode?.grantsItems) {
+      this.collectItems(nextNode.grantsItems);
+    }
+
+    // Record event to Supabase (player only)
+    if (!this.isReaderMode()) {
+      const wasRealChoice = current.choices.length > 1;
+
+      const eventResult = await this.supabase.recordEvent({
+        storyId: storyMeta.id,
+        nodeId: targetNode,
+        choiceId: wasRealChoice ? choice.id : 'continue',
+        choiceText: wasRealChoice ? choice.text : undefined,
+        collectedItems: [...this.collectedItems()],
+        diceRolls: diceResult.rolls,
+        diceTotal: diceResult.total,
+        skillCheckSuccess: diceResult.success,
+        diceManualOverride: diceResult.manualOverride
+      });
+
+      // Update story state
+      await this.supabase.updateStoryState(
+        storyMeta.id,
+        targetNode,
+        [...this.collectedItems()]
+      );
+
+      // Send email notification for real choices (include dice result)
+      if (wasRealChoice) {
+        try {
+          await this.notifyChoiceWithDice(current, choice, diceResult, targetNode);
+        } catch (err) {
+          console.error('Failed to send choice notification email:', err);
+        }
+      }
+
+      if (eventResult.success && eventResult.event) {
+        this.storyEvents.set([...this.storyEvents(), eventResult.event]);
+      } else {
+        await this.refreshState();
+      }
+    }
+  }
+
+  /**
+   * Send notification email for skill check choice
+   */
+  private async notifyChoiceWithDice(
+    fromNode: StoryNode,
+    choice: Choice,
+    diceResult: DiceResult,
+    targetNode: string
+  ): Promise<void> {
+    const skillCheck = choice.skillCheck;
+    if (!skillCheck) return;
+
+    const diceStr = `${skillCheck.diceCount}${skillCheck.diceType.toUpperCase()}${skillCheck.modifier ? (skillCheck.modifier > 0 ? '+' : '') + skillCheck.modifier : ''}`;
+    const rollStr = `[${diceResult.rolls.join(', ')}] = ${diceResult.total} vs DC ${skillCheck.difficulty}`;
+    const resultStr = diceResult.success ? 'SUCCESS' : 'FAILURE';
+    const overrideStr = diceResult.manualOverride ? ' (GM Override)' : '';
+
+    await fetch('/.netlify/functions/notify-choice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fromNode: fromNode.id,
+        fromTitle: fromNode.title,
+        choiceId: choice.id,
+        choiceText: `${choice.text} — 🎲 ${diceStr}: ${rollStr} → ${resultStr}${overrideStr}`,
+        toNode: targetNode,
+        timestamp: new Date().toISOString()
+      })
+    });
   }
 
   /**

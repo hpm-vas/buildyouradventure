@@ -46,6 +46,15 @@ interface Choice {
   nextNode: string;
   grantsItems?: string[];
   returnsTo?: string;
+  skillCheck?: {
+    diceType: 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20' | 'd100';
+    diceCount: number;
+    difficulty: number;
+    successNode: string;
+    failureNode: string;
+    modifier?: number;
+    label?: string;
+  };
 }
 
 interface InventoryItem {
@@ -267,6 +276,14 @@ async function seedStoryContent() {
     grants_items: string[];
     returns_to: string | null;
     sort_order: number;
+    skill_check_enabled: boolean;
+    skill_check_dice_type: string | null;
+    skill_check_dice_count: number | null;
+    skill_check_difficulty: number | null;
+    skill_check_success_node: string | null;
+    skill_check_failure_node: string | null;
+    skill_check_modifier: number | null;
+    skill_check_label: string | null;
   }> = [];
 
   Object.values(storyData.nodes).forEach(node => {
@@ -279,7 +296,15 @@ async function seedStoryContent() {
         next_node: choice.nextNode,
         grants_items: choice.grantsItems || [],
         returns_to: choice.returnsTo || null,
-        sort_order: index
+        sort_order: index,
+        skill_check_enabled: !!choice.skillCheck,
+        skill_check_dice_type: choice.skillCheck?.diceType || null,
+        skill_check_dice_count: choice.skillCheck?.diceCount || null,
+        skill_check_difficulty: choice.skillCheck?.difficulty || null,
+        skill_check_success_node: choice.skillCheck?.successNode || null,
+        skill_check_failure_node: choice.skillCheck?.failureNode || null,
+        skill_check_modifier: choice.skillCheck?.modifier || null,
+        skill_check_label: choice.skillCheck?.label || null
       });
     });
   });

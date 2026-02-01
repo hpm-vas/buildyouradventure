@@ -1,4 +1,14 @@
 <div class="story-view">
+  <!-- Dice roll overlay -->
+  @if (pendingSkillCheck(); as choice) {
+    <app-dice-roll
+      [skillCheck]="choice.skillCheck!"
+      [choiceText]="choice.text"
+      (rollComplete)="onDiceRollComplete($event)"
+      (cancelled)="onDiceRollCancelled()"
+    />
+  }
+
   <!-- Admin panel overlay -->
   @if (showAdminPanel()) {
     <app-admin (close)="onCloseAdmin()" />
@@ -167,6 +177,21 @@
                         <div class="history-choice">
                           <span class="choice-label">Du hast gewählt:</span>
                           <span class="choice-text">"{{ entry.choiceText }}"</span>
+                          @if (entry.diceRolls && entry.diceRolls.length > 0) {
+                            <div class="history-dice-result" [class.success]="entry.skillCheckSuccess" [class.failure]="!entry.skillCheckSuccess">
+                              <span class="dice-rolls">
+                                @for (roll of entry.diceRolls; track $index) {
+                                  <span class="dice-roll">🎲 {{ roll }}</span>
+                                }
+                              </span>
+                              <span class="dice-outcome">
+                                → {{ entry.skillCheckSuccess ? 'Erfolg!' : 'Fehlgeschlagen!' }}
+                              </span>
+                              @if (entry.diceManualOverride) {
+                                <span class="gm-override">(GM Override)</span>
+                              }
+                            </div>
+                          }
                         </div>
                       }
                     </div>
@@ -252,12 +277,21 @@
                 class="choice-btn"
                 [class.available-path]="isReaderMode() && availablePath()?.id === choice.id"
                 [class.explored-choice]="choice.returnsTo && isNodeExplored(choice.nextNode)"
+                [class.skill-check-choice]="choice.skillCheck"
                 (click)="onChoiceClick(choice)"
                 [disabled]="isChoosing() || (isReaderMode() && node.choices.length > 1 && availablePath()?.id !== choice.id)"
                 [class.hidden-choice]="isReaderMode() && node.choices.length > 1 && availablePath() && availablePath()?.id !== choice.id"
               >
                 @if (choice.returnsTo && isNodeExplored(choice.nextNode)) {
                   <span class="explored-mark">&#10003;</span>
+                }
+                @if (choice.skillCheck) {
+                  <span class="skill-badge">
+                    🎲 {{ choice.skillCheck.diceCount }}{{ choice.skillCheck.diceType.toUpperCase() }}{{ choice.skillCheck.modifier && choice.skillCheck.modifier > 0 ? '+' + choice.skillCheck.modifier : choice.skillCheck.modifier && choice.skillCheck.modifier < 0 ? choice.skillCheck.modifier : '' }} vs {{ choice.skillCheck.difficulty }}
+                    @if (choice.skillCheck.label) {
+                      <span class="skill-label">({{ choice.skillCheck.label }})</span>
+                    }
+                  </span>
                 }
                 {{ choice.text }}
               </button>

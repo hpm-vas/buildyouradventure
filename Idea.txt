@@ -1,0 +1,79 @@
+Project Specification: "Plot-smithy"  
+Collaborative Episodic Storytelling Platform
+
+1. Project Overview  
+"Plot-smithy" is an interactive web platform where a Game Master (GM) and Players co-create one or more stories. It combines the structure of a blog, prompt-driven creative input via emotion cards, and optional chance mechanics via dice rolls. Story content is stored as markup files in a directory tree (Obsidian-inspired organization).  
+All authored content, configuration, and interaction data must be durably persisted so that the full application state is restored after stopping and restarting the program.
+
+2. Interaction Mechanics  
+All player interaction is driven by a GM-authored Story-Part (chapter/block). For each Story-Part, the GM defines the interaction configuration available to players.
+
+• A. Story-Part with Structured Choices (with optional Emotion Card and optional Dice Roll):  
+o The GM provides a fixed set of choices (e.g., “Take ring”, “Don’t take ring”).  
+o The Story-Part is configured as either:  
+  - Choice (only)  
+  - Card + Choice (Emotion Card selection required/allowed + choice selection)  
+  (No mixing of “Choice only” and “Card + Choice” within the same Story-Part.)  
+o Optional Dice Roll (GM-defined) may be attached to either Choice-only or Card+Choice Story-Parts.  
+o Dice roll handling: server-side roll; display the roll result to users (result output only; no additional branching requirement implied beyond recording and display). Additionally the Dice can be put in manually and saved  
+o All recorded interactions (choice, card selection, dice result incl. manual entry) must be persisted to durable storage and remain available after program restart.
+
+• B. Story-Part with Free-Text (with Emotion Cards):  
+o The GM provides an empty text field instead of action choices.  
+o Emotion Cards are used as a creative/tone selector for the text entry (Card + Textfield).  
+o Textfield availability rule:  
+  - A textfield option is always possible in addition to Choice-based Story-Parts (as configured by the GM).  
+  - A textfield is mandatory for “Card only / no other interaction” cases (i.e., when the Story-Part is not offering choices, the interaction is Card + Textfield).  
+o All recorded interactions (card selection, entered text) must be persisted to durable storage and remain available after program restart.
+
+• C. Multimedia Chapters:  
+* Each Story-Part/chapter serves as a blog-style post containing the GM’s narrative text.
+
+Supported interaction configurations (as GM-defined per Story-Part):  
+• Choice  
+• Choice + Textfield  
+• Choice + Roll  
+• Choice + Roll + Textfield  
+• Card + Choice  
+• Card + Choice + Textfield  
+• Card + Choice + Roll  
+• Card + Choice + Roll + Textfield  
+• Card + Textfield  
+• Textfield
+
+3. User Roles & Functionality  
+The Game Master (GM)  
+• Story-Part Architect: Writes each Story-Part (chapter/block) narrative and sets the scene.  
+• Interaction Designer: For each Story-Part, selects exactly one primary interaction type: Choice-only, Card+Choice, or Card+Textfield; optionally enables dice rolls for Choice-only or Card+Choice.  
+• Card Manager: Defines the Emotion Card set (deck) available to players per Story-Part where cards are enabled.  
+• Multi-Story Manager: Creates and manages multiple distinct stories; ensures each story’s content and interaction logs are kept separate.  
+• All GM-authored Story-Parts, interaction configurations, and Emotion Card deck definitions must be persisted to durable storage and restored after program restart.
+
+The Player  
+• Narrative Agency: Participates via GM-defined interactions (choices, optional emotion cards, optional dice rolls, and/or text entry).  
+• Story Selection: Selects which story to view/play at the start of the session/application entry.  
+• Story Archive: Can view the chronological log of each story, showing the path taken, cards selected, text entered, and dice results associated with each Story-Part.  
+• Player interaction history and per-Story-Part interaction state must be persisted to durable storage and remain available after program restart.
+
+4. Technical Requirements  
+• Frontend (Angular):  
+  - Story selection UI at application start to choose among multiple stories.  
+  - A dynamic Interaction Component that renders per-Story-Part interaction modes:  
+    * Choice list UI  
+    * Emotion Card selection + Choice list UI  
+    * Emotion Card selection + Textfield UI  
+    * Optional dice roller visualization/animation with result display only  
+  - Must support optional textfield add-on alongside Choice-based Story-Parts when enabled by GM.  
+  - On application startup, must load the persisted story list, Story-Parts, and the persisted interaction state/logs required to render the current story archive and per-Story-Part recorded interactions.
+
+• Backend (Node.js):  
+  - Must support multiple stories with strict storage separation (no cross-story mixups) for content and interaction logs.  
+  - Must handle server-side dice rolling for any Story-Part with an enabled roll, and persist the roll result for display and archival.  
+  - Must persist the linkage between: Story-Part → chosen choice (if any) → selected Emotion Card (if any) → entered text (if any) → dice result (if any).  
+  - Story content storage: write/read Story-Parts as markup files (e.g., Markdown) in a directory tree structure (Obsidian-inspired), organized per story.  
+  - Must use durable persistence (non-volatile storage) for all stories, Story-Parts, interaction configurations, Emotion Card decks, and all interaction logs/state so that all information remains available after stopping and restarting the program.
+
+• State Management:  
+  - Track which Emotion Cards are available per Story-Part and what the player selected for that Story-Part.  
+  - Persist and query interaction state per story, per player, and per Story-Part (choices, cards, text, dice results).  
+  - Persisted state must be reloaded and queryable after program restart (no reliance on in-memory-only state for any required story, configuration, or interaction data).

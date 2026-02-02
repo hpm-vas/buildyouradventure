@@ -1,5 +1,4 @@
 export const environment = {
   production: false,
-  supabaseUrl: '', // TODO: Add Supabase URL
-  supabaseKey: ''  // TODO: Add Supabase anon key
+  pocketbaseUrl: 'http://127.0.0.1:8090'
 };

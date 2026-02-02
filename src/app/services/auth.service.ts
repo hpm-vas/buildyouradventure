@@ -1,18 +1,12 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { SupabaseService } from './supabase.service';
+import { PocketBaseService, UserRole } from './pocketbase.service';
 
-export type UserRole = 'player' | 'reader' | 'admin';
+export { UserRole } from './pocketbase.service';
 
 export interface User {
   id: string;
   role: UserRole;
   name: string | null;
-}
-
-export interface LoginResponse {
-  token: string;
-  user: User;
-  expiresAt: number;
 }
 
 /**
@@ -23,8 +17,7 @@ export interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly supabase = inject(SupabaseService);
-  private readonly EXPIRY_KEY = 'plotsmithy.auth.expiry';
+  private readonly pb = inject(PocketBaseService);
 
   private _user = signal<User | null>(null);
   private _loading = signal(false);
@@ -34,11 +27,8 @@ export class AuthService {
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   
-  readonly isAuthenticated = computed(() => {
-    const token = this.supabase.token();
-    const expiry = this.getStoredExpiry();
-    return token !== null && expiry > Date.now();
-  });
+  // Delegate auth state to PocketBase service
+  readonly isAuthenticated = this.pb.isAuthenticated;
 
   readonly role = computed(() => this._user()?.role ?? null);
   readonly isAdmin = computed(() => this._user()?.role === 'admin');
@@ -52,37 +42,23 @@ export class AuthService {
    * Restore user session from stored token
    */
   private restoreSession(): void {
-    const token = this.supabase.getToken();
-    const expiry = this.getStoredExpiry();
+    const token = this.pb.token();
 
-    if (token && expiry > Date.now()) {
+    if (token && this.pb.isAuthenticated()) {
       // Decode user from token payload (base64)
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         this._user.set({
-          id: payload.sub,
+          id: payload.id || payload.sub,
           role: payload.role,
           name: payload.name
         });
-        console.log('Session restored for:', payload.name || payload.sub);
+        console.log('Session restored for:', payload.name || payload.id);
       } catch (e) {
         console.error('Failed to restore session:', e);
         this.logout();
       }
-    } else if (token) {
-      // Token expired
-      console.log('Token expired, clearing session');
-      this.logout();
     }
-  }
-
-  private getStoredExpiry(): number {
-    const stored = localStorage.getItem(this.EXPIRY_KEY);
-    return stored ? parseInt(stored, 10) : 0;
-  }
-
-  private setStoredExpiry(expiry: number): void {
-    localStorage.setItem(this.EXPIRY_KEY, expiry.toString());
   }
 
   /**
@@ -93,14 +69,14 @@ export class AuthService {
     this._error.set(null);
 
     try {
-      const response = await this.supabase.callFunction<LoginResponse>('pin-login', { pin });
-
-      // Store token and expiry
-      this.supabase.setToken(response.token);
-      this.setStoredExpiry(response.expiresAt);
+      const response = await this.pb.loginWithPin(pin);
 
       // Set user state
-      this._user.set(response.user);
+      this._user.set({
+        id: response.user.id,
+        role: response.user.role,
+        name: response.user.name
+      });
 
       console.log('Login successful:', response.user.name || response.user.id);
       return true;
@@ -120,8 +96,7 @@ export class AuthService {
    * Clear authentication state
    */
   logout(): void {
-    this.supabase.clearToken();
-    localStorage.removeItem(this.EXPIRY_KEY);
+    this.pb.logout();
     this._user.set(null);
     this._error.set(null);
   }

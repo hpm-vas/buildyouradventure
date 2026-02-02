@@ -1,12 +1,24 @@
-<header class="app-header">
-  <h1>{{ title }}</h1>
-  <nav>
-    <a routerLink="/story">Story</a>
-    <a routerLink="/admin">Admin</a>
-    <a routerLink="/pin">PIN</a>
-  </nav>
-</header>
+@if (isAuthenticated()) {
+  <header class="app-header">
+    <h1>{{ title }}</h1>
+    <nav>
+      <a routerLink="/story">Story</a>
+      <a routerLink="/admin">Admin</a>
+      <span class="user-info">{{ user()?.name || 'User' }}</span>
+      <button class="logout-btn" (click)="logout()">Logout</button>
+    </nav>
+  </header>
 
-<main class="app-content">
-  <router-outlet></router-outlet>
-</main>
+  <main class="app-content">
+    <router-outlet></router-outlet>
+  </main>
+} @else {
+  <main class="app-content centered">
+    <app-pin-gate
+      #pinGate
+      [isLoading]="isLoading()"
+      [errorMessage]="authError()"
+      (pinSubmit)="onPinSubmit($event)"
+    />
+  </main>
+}

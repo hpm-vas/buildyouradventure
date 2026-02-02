@@ -1,9 +1,18 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
+import { SupabaseService } from './supabase.service';
+
+export type UserRole = 'player' | 'reader' | 'admin';
 
 export interface User {
   id: string;
-  role: 'player' | 'reader' | 'admin';
-  storyId?: string;
+  role: UserRole;
+  name: string | null;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
+  expiresAt: number;
 }
 
 /**
@@ -14,27 +23,66 @@ export interface User {
   providedIn: 'root'
 })
 export class AuthService {
+  private readonly supabase = inject(SupabaseService);
+  private readonly EXPIRY_KEY = 'plotsmithy.auth.expiry';
+
   private _user = signal<User | null>(null);
-  private _token = signal<string | null>(null);
   private _loading = signal(false);
+  private _error = signal<string | null>(null);
 
   readonly user = this._user.asReadonly();
-  readonly token = this._token.asReadonly();
   readonly loading = this._loading.asReadonly();
-  readonly isAuthenticated = () => this._token() !== null;
+  readonly error = this._error.asReadonly();
+  
+  readonly isAuthenticated = computed(() => {
+    const token = this.supabase.token();
+    const expiry = this.getStoredExpiry();
+    return token !== null && expiry > Date.now();
+  });
+
+  readonly role = computed(() => this._user()?.role ?? null);
+  readonly isAdmin = computed(() => this._user()?.role === 'admin');
 
   constructor() {
-    // Check for existing token on init
-    this.loadStoredToken();
+    // Try to restore session on init
+    this.restoreSession();
   }
 
-  private loadStoredToken(): void {
-    const stored = localStorage.getItem('auth_token');
-    if (stored) {
-      // TODO: Validate token expiry
-      this._token.set(stored);
-      console.log('Loaded stored auth token');
+  /**
+   * Restore user session from stored token
+   */
+  private restoreSession(): void {
+    const token = this.supabase.getToken();
+    const expiry = this.getStoredExpiry();
+
+    if (token && expiry > Date.now()) {
+      // Decode user from token payload (base64)
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        this._user.set({
+          id: payload.sub,
+          role: payload.role,
+          name: payload.name
+        });
+        console.log('Session restored for:', payload.name || payload.sub);
+      } catch (e) {
+        console.error('Failed to restore session:', e);
+        this.logout();
+      }
+    } else if (token) {
+      // Token expired
+      console.log('Token expired, clearing session');
+      this.logout();
     }
+  }
+
+  private getStoredExpiry(): number {
+    const stored = localStorage.getItem(this.EXPIRY_KEY);
+    return stored ? parseInt(stored, 10) : 0;
+  }
+
+  private setStoredExpiry(expiry: number): void {
+    localStorage.setItem(this.EXPIRY_KEY, expiry.toString());
   }
 
   /**
@@ -42,10 +90,27 @@ export class AuthService {
    */
   async loginWithPin(pin: string): Promise<boolean> {
     this._loading.set(true);
+    this._error.set(null);
+
     try {
-      // TODO: Call Netlify function -> Supabase Edge function
-      console.log('Authenticating with PIN...');
+      const response = await this.supabase.callFunction<LoginResponse>('pin-login', { pin });
+
+      // Store token and expiry
+      this.supabase.setToken(response.token);
+      this.setStoredExpiry(response.expiresAt);
+
+      // Set user state
+      this._user.set(response.user);
+
+      console.log('Login successful:', response.user.name || response.user.id);
+      return true;
+
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Login failed';
+      this._error.set(message);
+      console.error('Login failed:', message);
       return false;
+
     } finally {
       this._loading.set(false);
     }
@@ -55,8 +120,16 @@ export class AuthService {
    * Clear authentication state
    */
   logout(): void {
-    localStorage.removeItem('auth_token');
+    this.supabase.clearToken();
+    localStorage.removeItem(this.EXPIRY_KEY);
     this._user.set(null);
-    this._token.set(null);
+    this._error.set(null);
+  }
+
+  /**
+   * Clear current error
+   */
+  clearError(): void {
+    this._error.set(null);
   }
 }

@@ -13,6 +13,7 @@
 
   nav {
     display: flex;
+    align-items: center;
     gap: 1rem;
 
     a {
@@ -26,10 +27,37 @@
         background-color: #0f3460;
       }
     }
+
+    .user-info {
+      color: #888;
+      font-size: 0.9rem;
+      padding: 0 0.5rem;
+    }
+
+    .logout-btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid #e94560;
+      border-radius: 4px;
+      background: transparent;
+      color: #e94560;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background-color: #e94560;
+        color: white;
+      }
+    }
   }
 }
 
 .app-content {
   padding: 2rem;
   min-height: calc(100vh - 80px);
+
+  &.centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }

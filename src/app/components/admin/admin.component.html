@@ -1,0 +1,21 @@
+<div class="admin">
+  <h2>Admin Panel</h2>
+  
+  <section class="stories-list">
+    <h3>Stories</h3>
+    @for (story of stories(); track story.id) {
+      <div 
+        class="story-card" 
+        [class.selected]="selectedStory() === story.id"
+        (click)="selectStory(story.id)"
+      >
+        <span class="story-name">{{ story.name }}</span>
+        <span class="story-meta">{{ story.nodeCount }} nodes</span>
+      </div>
+    }
+  </section>
+
+  <section class="admin-actions">
+    <button class="btn-primary">+ New Story</button>
+  </section>
+</div>

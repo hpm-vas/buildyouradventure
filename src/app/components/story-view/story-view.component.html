@@ -1,0 +1,17 @@
+<article class="story-view">
+  <header class="story-header">
+    <h2>{{ currentNode().title }}</h2>
+  </header>
+
+  <section class="story-content">
+    <p>{{ currentNode().text }}</p>
+  </section>
+
+  <section class="story-choices">
+    @for (choice of currentNode().choices; track choice.id) {
+      <button class="choice-btn" (click)="selectChoice(choice.id)">
+        {{ choice.text }}
+      </button>
+    }
+  </section>
+</article>

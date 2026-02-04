@@ -8,36 +8,38 @@
       <p>{{ storyService.error() }}</p>
       <button (click)="storyService.loadCurrentNode()">Retry</button>
     </div>
-  } @else if (storyService.currentNode(); as node) {
-    <header class="story-header">
-      @if (node.title) {
-        <h2>{{ node.title }}</h2>
-      }
-    </header>
-
-    <section class="story-content">
-      <div [innerHTML]="node.text"></div>
-    </section>
-
-    @if (node.choices.length > 0) {
-      <section class="story-choices">
-        @for (choice of node.choices; track choice.id) {
-          <button 
-            class="choice-btn" 
-            (click)="selectChoice(choice.id)"
-            [disabled]="storyService.loading()">
-            {{ choice.text }}
-          </button>
-        }
-      </section>
-    } @else {
-      <section class="story-pending">
-        <p><em>Awaiting next chapter...</em></p>
-      </section>
-    }
   } @else {
-    <div class="no-content">
-      <p>No story content available. Please create a "start" node in PocketBase.</p>
-    </div>
+    @if (storyService.currentNode(); as node) {
+      <header class="story-header">
+        @if (node.title) {
+          <h2>{{ node.title }}</h2>
+        }
+      </header>
+
+      <section class="story-content">
+        <div [innerHTML]="node.text"></div>
+      </section>
+
+      @if (node.choices.length > 0) {
+        <section class="story-choices">
+          @for (choice of node.choices; track choice.id) {
+            <button 
+              class="choice-btn" 
+              (click)="selectChoice(choice.id)"
+              [disabled]="storyService.loading()">
+              {{ choice.text }}
+            </button>
+          }
+        </section>
+      } @else {
+        <section class="story-pending">
+          <p><em>Awaiting next chapter...</em></p>
+        </section>
+      }
+    } @else {
+      <div class="no-content">
+        <p>No story content available. Please create a "start" node in PocketBase.</p>
+      </div>
+    }
   }
 </article>

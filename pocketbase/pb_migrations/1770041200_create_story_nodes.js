@@ -1,7 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
   const collection = new Collection({
-    id: "story_nodes",
+    id: "pbc_story_nodes",
     name: "story_nodes",
     type: "base",
     system: false,

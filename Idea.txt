@@ -77,3 +77,10 @@ The Player
   - Track which Emotion Cards are available per Story-Part and what the player selected for that Story-Part.  
   - Persist and query interaction state per story, per player, and per Story-Part (choices, cards, text, dice results).  
   - Persisted state must be reloaded and queryable after program restart (no reliance on in-memory-only state for any required story, configuration, or interaction data).
+
+
+
+• For Test porposes:
+  - I added a GM/Admin into Pocketspace with PIN 000000
+  - I added a Reader into Pocketspace with PIN 111111 
+  - I added a Player into Pocketspace with PIN 222222 

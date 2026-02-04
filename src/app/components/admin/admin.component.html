@@ -1,21 +1,124 @@
-<div class="admin">
-  <h2>Admin Panel</h2>
-  
-  <section class="stories-list">
-    <h3>Stories</h3>
-    @for (story of stories(); track story.id) {
-      <div 
-        class="story-card" 
-        [class.selected]="selectedStory() === story.id"
-        (click)="selectStory(story.id)"
-      >
-        <span class="story-name">{{ story.name }}</span>
-        <span class="story-meta">{{ story.nodeCount }} nodes</span>
-      </div>
-    }
-  </section>
+<div class="admin-container">
+  <!-- Header -->
+  <header class="admin-header">
+    <h2>Story Editor</h2>
+    <div class="header-stats">
+      <span class="stat">
+        <strong>{{ stats().total }}</strong> nodes
+      </span>
+      <span class="stat complete">
+        <strong>{{ stats().complete }}</strong> complete
+      </span>
+      <span class="stat dummy">
+        <strong>{{ stats().dummy }}</strong> placeholder
+      </span>
+      @if (!stats().hasStart) {
+        <span class="stat warning">⚠️ No start node</span>
+      }
+    </div>
+  </header>
 
-  <section class="admin-actions">
-    <button class="btn-primary">+ New Story</button>
-  </section>
+  <div class="admin-content">
+    <!-- Left Panel: Node List / Graph -->
+    <aside class="nodes-panel">
+      <div class="panel-header">
+        <div class="view-toggle">
+          <button 
+            [class.active]="viewMode() === 'graph'" 
+            (click)="setViewMode('graph')"
+          >
+            🗺️ Graph
+          </button>
+          <button 
+            [class.active]="viewMode() === 'list'" 
+            (click)="setViewMode('list')"
+          >
+            📋 List
+          </button>
+        </div>
+        <button class="btn-primary" (click)="openCreateEditor()">+ New Node</button>
+      </div>
+
+      @if (viewMode() === 'list') {
+        <!-- List View -->
+        <div class="search-box">
+          <input 
+            type="text" 
+            placeholder="Search nodes..."
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+          />
+        </div>
+
+        <div class="node-list">
+          @if (storyService.loading()) {
+            <div class="loading">Loading nodes...</div>
+          } @else if (filteredNodes().length === 0) {
+            <div class="empty-state">
+              @if (searchQuery()) {
+                No nodes matching "{{ searchQuery() }}"
+              } @else {
+                No story nodes yet. Create your first node!
+              }
+            </div>
+          } @else {
+            @for (node of filteredNodes(); track node.id) {
+              <div 
+                class="node-card"
+                [class.selected]="selectedNodeId() === node.id"
+                [class.start]="node.is_start"
+                [class.dummy]="getNodeStatus(node) === 'dummy'"
+                (click)="selectNode(node.id)"
+              >
+                <div class="node-info">
+                  <span class="node-key">{{ node.node_key }}</span>
+                  @if (node.title) {
+                    <span class="node-title">{{ node.title }}</span>
+                  }
+                </div>
+                <div class="node-meta">
+                  @if (node.is_start) {
+                    <span class="badge start">⭐ Start</span>
+                  }
+                  @if (getNodeStatus(node) === 'dummy') {
+                    <span class="badge dummy">Placeholder</span>
+                  }
+                  <span class="choice-count">{{ getChoiceCount(node.id) }} choices</span>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      } @else {
+        <!-- Graph View -->
+        <app-story-graph 
+          (nodeSelected)="onGraphNodeSelected($event)"
+        />
+      }
+    </aside>
+
+    <!-- Right Panel: Editor -->
+    <main class="editor-panel">
+      @if (editorMode() === 'closed') {
+        <div class="editor-placeholder">
+          <p>Select a node to edit or create a new one</p>
+          <button class="btn-primary" (click)="openCreateEditor()">+ Create New Node</button>
+        </div>
+      } @else {
+        <app-node-editor
+          [nodeId]="selectedNodeId()"
+          [existingChoices]="selectedNodeChoices()"
+          (close)="closeEditor()"
+          (saved)="onNodeSaved($event)"
+        />
+      }
+    </main>
+  </div>
+
+  @if (storyService.error()) {
+    <div class="global-error">
+      {{ storyService.error() }}
+      <button (click)="storyService.clearError()">✕</button>
+    </div>
+  }
 </div>

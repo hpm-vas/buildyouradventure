@@ -1,7 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
   const collection = new Collection({
-    id: "choices",
+    id: "pbc_choices",
     name: "choices",
     type: "base",
     system: false,
@@ -12,7 +12,7 @@ migrate((app) => {
         type: "relation",
         system: false,
         required: true,
-        collectionId: "story_nodes",
+        collectionId: "pbc_story_nodes",
         cascadeDelete: true,
         minSelect: null,
         maxSelect: 1

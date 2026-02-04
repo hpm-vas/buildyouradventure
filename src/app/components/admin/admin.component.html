@@ -19,6 +19,7 @@
   </header>
 
   <div class="admin-content">
+    @if (!requiresStartNode()) {
     <!-- Left Panel: Node List / Graph -->
     <aside class="nodes-panel">
       <div class="panel-header">
@@ -96,18 +97,29 @@
         />
       }
     </aside>
+    }
 
     <!-- Right Panel: Editor -->
-    <main class="editor-panel">
+    <main class="editor-panel" [class.full-width]="requiresStartNode()">
       @if (editorMode() === 'closed') {
         <div class="editor-placeholder">
-          <p>Select a node to edit or create a new one</p>
-          <button class="btn-primary" (click)="openCreateEditor()">+ Create New Node</button>
+          @if (requiresStartNode()) {
+            <div class="start-node-prompt">
+              <span class="prompt-icon">⭐</span>
+              <h3>Create Your Start Node</h3>
+              <p>Every story needs a beginning. Create your first node to start building your adventure.</p>
+              <button class="btn-primary btn-large" (click)="openCreateEditor()">Create Start Node</button>
+            </div>
+          } @else {
+            <p>Select a node to edit or create a new one</p>
+            <button class="btn-primary" (click)="openCreateEditor()">+ Create New Node</button>
+          }
         </div>
       } @else {
         <app-node-editor
           [nodeId]="selectedNodeId()"
           [existingChoices]="selectedNodeChoices()"
+          [forceStartNode]="requiresStartNode()"
           (close)="closeEditor()"
           (saved)="onNodeSaved($event)"
         />

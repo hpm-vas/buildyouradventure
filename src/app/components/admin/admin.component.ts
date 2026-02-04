@@ -1,4 +1,4 @@
-import { Component, signal, inject, OnInit, computed, viewChild } from '@angular/core';
+import { Component, signal, inject, OnInit, computed, viewChild, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminStoryService, StoryNodeRecord, ChoiceRecord } from '../../services/admin-story.service';
 import { AuthService } from '../../services/auth.service';
@@ -58,6 +58,21 @@ export class AdminComponent implements OnInit {
     hasStart: !!this.storyService.startNode()
   }));
 
+  // When true, only allow creating the start node (only after loading is complete)
+  readonly requiresStartNode = computed(() => 
+    !this.storyService.loading() && !this.stats().hasStart
+  );
+
+  constructor() {
+    // Auto-open editor when start node is required
+    effect(() => {
+      if (this.requiresStartNode()) {
+        this.editorMode.set('create');
+        this.selectedNodeId.set(null);
+      }
+    });
+  }
+
   ngOnInit(): void {
     this.storyService.loadAll();
   }
@@ -69,6 +84,7 @@ export class AdminComponent implements OnInit {
 
   // Node selection
   selectNode(nodeId: string): void {
+    if (this.requiresStartNode()) return;
     this.selectedNodeId.set(nodeId);
     this.editorMode.set('edit');
     
@@ -80,6 +96,7 @@ export class AdminComponent implements OnInit {
   }
 
   onGraphNodeSelected(nodeId: string): void {
+    if (this.requiresStartNode()) return;
     this.selectedNodeId.set(nodeId);
     this.editorMode.set('edit');
   }

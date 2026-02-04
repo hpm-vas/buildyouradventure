@@ -62,11 +62,13 @@ export class PocketBaseService {
     });
 
     // Save auth to store (persists to localStorage automatically)
-    // Cast to RecordModel - we only need the id for session restoration
+    // Include role for PocketBase auth rules (@request.auth.role)
     this.pb.authStore.save(response.token, {
       id: response.user.id,
       collectionId: 'users',
-      collectionName: 'users'
+      collectionName: 'users',
+      role: response.user.role,
+      name: response.user.name
     } as RecordModel);
 
     return response;

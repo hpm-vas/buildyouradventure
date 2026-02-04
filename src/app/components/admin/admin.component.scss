@@ -209,6 +209,11 @@
   padding: 1rem;
   overflow: hidden;
 
+  &.full-width {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
   app-node-editor {
     flex: 1;
     display: block;
@@ -225,6 +230,42 @@
   color: #666;
 
   p {
+    font-size: 1.1rem;
+  }
+}
+
+// Start node prompt
+.start-node-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3rem;
+  background: #1a1a2e;
+  border-radius: 16px;
+  border: 2px dashed #e94560;
+  max-width: 500px;
+
+  .prompt-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1.5rem;
+    color: #e94560;
+  }
+
+  p {
+    margin: 0 0 1.5rem;
+    font-size: 1rem;
+    color: #aaa;
+    line-height: 1.5;
+  }
+
+  .btn-large {
+    padding: 0.9rem 2rem;
     font-size: 1.1rem;
   }
 }

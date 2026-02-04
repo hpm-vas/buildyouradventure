@@ -10,6 +10,8 @@ interface EditableChoice {
   isNew?: boolean;
 }
 
+type EditorMode = 'create' | 'edit' | 'start';
+
 /**
  * Component for editing story node content and choices
  * Supports Markdown editing with toggle preview
@@ -21,9 +23,9 @@ interface EditableChoice {
   template: `
     <div class="node-editor">
       <header class="editor-header">
-        <h3>{{ isNewNode() ? 'Create New Node' : 'Edit Node' }}</h3>
+        <h3>{{ editorTitle() }}</h3>
         <div class="header-actions">
-          @if (!isNewNode()) {
+          @if (!isNewNode() && !forceStartNode()) {
             <button 
               type="button"
               class="btn-icon"
@@ -35,7 +37,9 @@ interface EditableChoice {
               ⭐
             </button>
           }
-          <button type="button" class="btn-secondary" (click)="close.emit()">✕</button>
+          @if (!forceStartNode()) {
+            <button type="button" class="btn-secondary" (click)="close.emit()">✕</button>
+          }
         </div>
       </header>
 
@@ -441,6 +445,7 @@ export class NodeEditorComponent implements OnInit {
   // Inputs
   readonly nodeId = input<string | null>(null);
   readonly existingChoices = input<ChoiceRecord[]>([]);
+  readonly forceStartNode = input(false);
 
   // Outputs
   readonly close = output<void>();
@@ -461,6 +466,11 @@ export class NodeEditorComponent implements OnInit {
   // Computed
   readonly isNewNode = computed(() => !this.nodeId());
 
+  readonly editorTitle = computed(() => {
+    if (this.forceStartNode()) return 'Create Start Node';
+    return this.isNewNode() ? 'Create New Node' : 'Edit Node';
+  });
+
   readonly selectedNode = computed(() => {
     const id = this.nodeId();
     return id ? this.storyService.getNodeById(id) : null;
@@ -474,11 +484,11 @@ export class NodeEditorComponent implements OnInit {
     }
   });
 
-  readonly isValid = computed(() => {
+  isValid(): boolean {
     const nodeKeyValid = /^[a-z0-9-]+$/.test(this.formData.node_key);
     const hasContent = this.formData.text.trim().length > 0;
     return nodeKeyValid && hasContent;
-  });
+  }
 
   constructor() {
     // Update form when node changes
@@ -546,7 +556,10 @@ export class NodeEditorComponent implements OnInit {
 
     if (this.isNewNode()) {
       // Create new node
-      node = await this.storyService.createNode(this.formData);
+      const nodeData = this.forceStartNode() 
+        ? { ...this.formData, is_start: true }
+        : this.formData;
+      node = await this.storyService.createNode(nodeData);
     } else {
       // Update existing node
       const nodeId = this.nodeId();

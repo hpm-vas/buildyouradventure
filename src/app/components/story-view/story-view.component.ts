@@ -1,24 +1,23 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { StoryService } from '../../services/story.service';
 
 @Component({
   selector: 'app-story-view',
   standalone: true,
-  imports: [],
+  imports: [CommonModule],
   templateUrl: './story-view.component.html',
   styleUrl: './story-view.component.scss'
 })
-export class StoryViewComponent {
-  currentNode = signal({
-    title: 'Welcome to Plot-smithy',
-    text: 'This is a placeholder story node. The collaborative storytelling adventure begins here!',
-    choices: [
-      { id: '1', text: 'Begin your adventure' },
-      { id: '2', text: 'Learn more about the world' }
-    ]
-  });
+export class StoryViewComponent implements OnInit {
+  protected storyService = inject(StoryService);
 
-  selectChoice(choiceId: string) {
-    console.log('Choice selected:', choiceId);
-    // TODO: Implement story progression
+  ngOnInit(): void {
+    // Load story context when component initializes
+    this.storyService.loadCurrentNode();
+  }
+
+  selectChoice(choiceId: string): void {
+    this.storyService.selectChoice(choiceId);
   }
 }

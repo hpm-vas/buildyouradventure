@@ -1,17 +1,43 @@
 <article class="story-view">
-  <header class="story-header">
-    <h2>{{ currentNode().title }}</h2>
-  </header>
+  @if (storyService.loading()) {
+    <div class="loading">
+      <p>Loading story...</p>
+    </div>
+  } @else if (storyService.error()) {
+    <div class="error">
+      <p>{{ storyService.error() }}</p>
+      <button (click)="storyService.loadCurrentNode()">Retry</button>
+    </div>
+  } @else if (storyService.currentNode(); as node) {
+    <header class="story-header">
+      @if (node.title) {
+        <h2>{{ node.title }}</h2>
+      }
+    </header>
 
-  <section class="story-content">
-    <p>{{ currentNode().text }}</p>
-  </section>
+    <section class="story-content">
+      <div [innerHTML]="node.text"></div>
+    </section>
 
-  <section class="story-choices">
-    @for (choice of currentNode().choices; track choice.id) {
-      <button class="choice-btn" (click)="selectChoice(choice.id)">
-        {{ choice.text }}
-      </button>
+    @if (node.choices.length > 0) {
+      <section class="story-choices">
+        @for (choice of node.choices; track choice.id) {
+          <button 
+            class="choice-btn" 
+            (click)="selectChoice(choice.id)"
+            [disabled]="storyService.loading()">
+            {{ choice.text }}
+          </button>
+        }
+      </section>
+    } @else {
+      <section class="story-pending">
+        <p><em>Awaiting next chapter...</em></p>
+      </section>
     }
-  </section>
+  } @else {
+    <div class="no-content">
+      <p>No story content available. Please create a "start" node in PocketBase.</p>
+    </div>
+  }
 </article>

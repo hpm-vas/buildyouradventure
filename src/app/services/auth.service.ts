@@ -1,7 +1,8 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { PocketBaseService, UserRole } from './pocketbase.service';
+import { PocketBaseService } from './pocketbase.service';
+import type { UserRole } from './pocketbase.service';
 
-export { UserRole } from './pocketbase.service';
+export type { UserRole } from './pocketbase.service';
 
 export interface User {
   id: string;

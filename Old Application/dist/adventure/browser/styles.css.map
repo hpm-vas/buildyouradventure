@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/styles.scss"],
-  "sourcesContent": ["* {\r\n  box-sizing: border-box;\r\n}\r\n\r\nhtml, body {\r\n  margin: 0;\r\n  padding: 0;\r\n  min-height: 100vh;\r\n  font-family: 'Lora', Georgia, serif;\r\n}\r\n\r\nbody {\r\n  background:\r\n    linear-gradient(rgba(139, 69, 19, 0.05), rgba(139, 69, 19, 0.1)),\r\n    url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E\"),\r\n    linear-gradient(180deg, #f5e6d3 0%, #ead4bd 50%, #dfc4a8 100%);\r\n  background-attachment: fixed;\r\n}\r\n\r\n// Remove tap highlight on mobile\r\n* {\r\n  -webkit-tap-highlight-color: transparent;\r\n}\r\n\r\n// Smooth scrolling\r\nhtml {\r\n  scroll-behavior: smooth;\r\n}\r\n\r\n// Better touch handling\r\nbutton {\r\n  touch-action: manipulation;\r\n}\r\n"],
-  "mappings": ";AAAA;AACE,cAAA;;AAGF;AAAA;AACE,UAAA;AACA,WAAA;AACA,cAAA;AACA;IAAA,MAAA;IAAA,OAAA;IAAA;;AAGF;AACE;IACE,gBAAA,KAAA,GAAA,EAAA,EAAA,EAAA,EAAA,EAAA,KAAA,EAAA,KAAA,GAAA,EAAA,EAAA,EAAA,EAAA,EAAA,KAAA;IAAA,4UAAA;IAAA;MAAA,MAAA;MAAA,QAAA,EAAA;MAAA,QAAA,GAAA;MAAA,QAAA;AAGF,yBAAA;;AAIF;AACE,+BAAA;;AAIF;AACE,mBAAA;;AAIF;AACE,gBAAA;;",
-  "names": []
-}

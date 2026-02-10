@@ -85,8 +85,22 @@ export class AdminComponent implements OnInit {
   }
 
   // Story selection
-  selectStory(story: StoryRecord): void {
-    this.storyService.selectStory(story.id);
+  async selectStory(story: StoryRecord): Promise<void> {
+    console.log('selectStory clicked, story:', story);
+    console.log('story.id:', story.id, 'story.name:', story.name);
+    
+    if (!story.id) {
+      console.error('Story has no ID!');
+      alert('Error: Story has no ID');
+      return;
+    }
+    
+    try {
+      await this.storyService.selectStory(story.id);
+    } catch (e) {
+      console.error('selectStory error:', e);
+      alert('Error selecting story: ' + (e instanceof Error ? e.message : e));
+    }
   }
 
   backToStories(): void {
@@ -113,7 +127,7 @@ export class AdminComponent implements OnInit {
     const story = await this.storyService.createStory(name, description);
     if (story) {
       this.closeCreateStoryDialog();
-      this.selectStory(story);
+      await this.selectStory(story);
     }
   }
 

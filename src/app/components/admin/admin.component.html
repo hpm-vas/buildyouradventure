@@ -7,6 +7,10 @@
         <button class="btn-primary" (click)="openCreateStoryDialog()">+ New Story</button>
       </header>
 
+      @if (storyService.error()) {
+        <div class="error-banner">{{ storyService.error() }}</div>
+      }
+
       @if (storyService.loading()) {
         <div class="loading">Loading stories...</div>
       } @else if (storyService.stories().length === 0) {
@@ -18,7 +22,7 @@
         <div class="story-grid">
           @for (story of storyService.stories(); track story.id) {
             <div class="story-card" (click)="selectStory(story)">
-              <h3>{{ story.name }}</h3>
+              <h3 [class.untitled]="!story.name">{{ story.name || 'Untitled Story' }}</h3>
               @if (story.description) {
                 <p>{{ story.description }}</p>
               }

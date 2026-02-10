@@ -47,6 +47,11 @@
     h3 {
       margin: 0 0 0.5rem 0;
       color: #eaeaea;
+
+      &.untitled {
+        font-style: italic;
+        color: #888;
+      }
     }
 
     p {
@@ -85,6 +90,15 @@
     .btn-primary {
       margin-top: 1rem;
     }
+  }
+
+  .error-banner {
+    background: #ff4444;
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    text-align: center;
   }
 }
 

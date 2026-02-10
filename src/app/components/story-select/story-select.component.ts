@@ -21,9 +21,6 @@ interface StoryRecord extends RecordModel {
     <div class="story-select">
       <header class="story-select-header">
         <h2>Select a Story</h2>
-        @if (isAdmin()) {
-          <button class="btn-create" (click)="openCreateDialog()">+ New Story</button>
-        }
       </header>
 
       @if (loading()) {
@@ -69,42 +66,6 @@ interface StoryRecord extends RecordModel {
         </div>
       }
 
-      @if (showCreateDialog()) {
-        <div class="dialog-backdrop" (click)="closeCreateDialog()">
-          <div class="dialog" (click)="$event.stopPropagation()">
-            <h3>Create New Story</h3>
-            <form (submit)="createStory($event)">
-              <div class="form-group">
-                <label for="storyName">Story Name</label>
-                <input 
-                  type="text" 
-                  id="storyName" 
-                  #storyName
-                  required 
-                  minlength="1"
-                  maxlength="200"
-                  placeholder="Enter story name"
-                />
-              </div>
-              <div class="form-group">
-                <label for="storyDesc">Description (optional)</label>
-                <textarea 
-                  id="storyDesc" 
-                  #storyDesc
-                  rows="3"
-                  placeholder="Brief description of your story"
-                ></textarea>
-              </div>
-              <div class="dialog-actions">
-                <button type="button" class="btn-cancel" (click)="closeCreateDialog()">Cancel</button>
-                <button type="submit" class="btn-primary" [disabled]="creating()">
-                  {{ creating() ? 'Creating...' : 'Create Story' }}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      }
     </div>
   `,
   styles: [`
@@ -124,21 +85,6 @@ interface StoryRecord extends RecordModel {
     .story-select-header h2 {
       margin: 0;
       font-size: 1.75rem;
-    }
-
-    .btn-create {
-      padding: 0.75rem 1.5rem;
-      background: var(--primary-color, #4a6fa5);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background 0.2s;
-    }
-
-    .btn-create:hover {
-      background: var(--primary-hover, #3d5d8a);
     }
 
     .story-grid {
@@ -227,77 +173,6 @@ interface StoryRecord extends RecordModel {
       margin-top: 1rem;
       padding: 0.5rem 1rem;
     }
-
-    .dialog-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-
-    .dialog {
-      background: var(--card-bg, #fff);
-      border-radius: 12px;
-      padding: 1.5rem;
-      width: 90%;
-      max-width: 400px;
-    }
-
-    .dialog h3 {
-      margin: 0 0 1.5rem 0;
-    }
-
-    .form-group {
-      margin-bottom: 1rem;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-    }
-
-    .form-group input,
-    .form-group textarea {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid var(--border-color, #ddd);
-      border-radius: 8px;
-      font-size: 1rem;
-      box-sizing: border-box;
-    }
-
-    .dialog-actions {
-      display: flex;
-      gap: 1rem;
-      justify-content: flex-end;
-      margin-top: 1.5rem;
-    }
-
-    .btn-cancel {
-      padding: 0.75rem 1.5rem;
-      background: transparent;
-      border: 1px solid var(--border-color, #ddd);
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    .btn-primary {
-      padding: 0.75rem 1.5rem;
-      background: var(--primary-color, #4a6fa5);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
   `]
 })
 export class StorySelectComponent implements OnInit {
@@ -311,8 +186,6 @@ export class StorySelectComponent implements OnInit {
   readonly stories = signal<Story[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly showCreateDialog = signal(false);
-  readonly creating = signal(false);
 
   readonly isAdmin = this.auth.isAdmin;
 
@@ -344,62 +217,6 @@ export class StorySelectComponent implements OnInit {
 
   selectStory(story: Story): void {
     this.storySelected.emit(story);
-  }
-
-  openCreateDialog(): void {
-    this.showCreateDialog.set(true);
-  }
-
-  closeCreateDialog(): void {
-    this.showCreateDialog.set(false);
-  }
-
-  async createStory(event: Event): Promise<void> {
-    event.preventDefault();
-    const form = event.target as HTMLFormElement;
-    const nameInput = form.querySelector('#storyName') as HTMLInputElement;
-    const descInput = form.querySelector('#storyDesc') as HTMLTextAreaElement;
-
-    const name = nameInput.value.trim();
-    const description = descInput.value.trim();
-
-    if (!name) return;
-
-    this.creating.set(true);
-
-    try {
-      // Create the story
-      const storyRecord = await this.pb.collection<StoryRecord>('stories').create({
-        name,
-        description,
-        owner_id: this.auth.user()?.id,
-        is_published: false
-      });
-
-      // Create the default "start" node for the story
-      await this.pb.collection('story_nodes').create({
-        story_id: storyRecord.id,
-        node_key: 'start',
-        title: 'Beginning',
-        text: '<!-- Add your story content here -->',
-        pending: true,
-        is_start: true
-      });
-
-      // Add to list and close dialog
-      const newStory = this.mapRecord(storyRecord);
-      this.stories.update(list => [newStory, ...list]);
-      this.closeCreateDialog();
-
-      // Optionally auto-select the new story
-      this.selectStory(newStory);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to create story';
-      alert(message);
-      console.error('StorySelectComponent.createStory error:', e);
-    } finally {
-      this.creating.set(false);
-    }
   }
 
   private mapRecord(record: StoryRecord): Story {

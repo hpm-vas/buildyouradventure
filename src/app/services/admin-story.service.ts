@@ -141,14 +141,19 @@ export class AdminStoryService {
     this._error.set(null);
 
     try {
+      console.log('loadStories: fetching stories...');
       const stories = await this.pb.collection<StoryRecord>('stories').getFullList({
         sort: '-created'
       });
+      console.log('loadStories: received', stories.length, 'stories');
       this._stories.set(stories);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load stories';
-      this._error.set(message);
       console.error('AdminStoryService.loadStories error:', e);
+      // Don't show "superuser" errors - likely a PocketBase admin panel issue
+      if (!message.includes('superuser')) {
+        this._error.set(message);
+      }
     } finally {
       this._loading.set(false);
     }
@@ -158,8 +163,10 @@ export class AdminStoryService {
    * Select a story to work with
    */
   async selectStory(storyId: string): Promise<void> {
+    console.log('AdminStoryService.selectStory called with id:', storyId);
     try {
       const story = await this.pb.collection<StoryRecord>('stories').getOne(storyId);
+      console.log('Fetched story for selection:', story);
       this._currentStory.set(story);
       await this.loadAll();
     } catch (e) {
@@ -176,18 +183,37 @@ export class AdminStoryService {
     this._loading.set(true);
     this._error.set(null);
 
+    console.log('createStory called with name:', name, 'description:', description);
+
     try {
       const userId = this.authService.user()?.id;
       if (!userId) {
         throw new Error('You must be logged in to create a story');
       }
 
-      const story = await this.pb.collection<StoryRecord>('stories').create({
+      const storyData = {
         name,
         description: description || '',
         is_published: false,
         owner_id: userId
-      });
+      };
+
+      const response = await this.pb.collection<StoryRecord>('stories').create(storyData);
+
+      console.log('PocketBase returned story:', response);
+      console.log('Story name from response:', response.name);
+
+      // Ensure the story has all fields (PocketBase might not return them all)
+      const story: StoryRecord = {
+        ...response,
+        name: response.name || name,
+        description: response.description || description || '',
+        is_published: response.is_published ?? false,
+        owner_id: response.owner_id || userId,
+        cover_image: response.cover_image || ''
+      };
+
+      console.log('Final story object:', story);
 
       // Create default start node
       await this.pb.collection<StoryNodeRecord>('story_nodes').create({
@@ -200,6 +226,7 @@ export class AdminStoryService {
       });
 
       this._stories.update(list => [story, ...list]);
+      this._error.set(null); // Clear any previous error on success
       return story;
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to create story';

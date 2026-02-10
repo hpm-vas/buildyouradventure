@@ -54,9 +54,9 @@ routerAdd("GET", "/api/stories", (e) => {
 
     const userRole = info.auth.getString("role");
     
-    // Admins see all stories, others see only published
+    // Gamemasters see all stories, others see only published
     let filter = "";
-    if (userRole !== "admin") {
+    if (userRole !== "gamemaster") {
         filter = "is_published = true";
     }
 

@@ -3,81 +3,17 @@ import {
   StoryNode, StoryEvent, Story, Choice, Media, 
   EmotionCard, CardDeck, DiceConfig, DiceResult, InteractionType 
 } from '../models/story.model';
-import { PocketBaseService } from './pocketbase.service';
-
-/** Response from GET /api/story-context */
-interface StoryContextResponse {
-  story: {
-    id: string;
-    name: string;
-    description: string | null;
-  };
-  currentNode: {
-    id: string;
-    nodeKey: string;
-    title: string | null;
-    text: string;
-    media: Media | null;
-    pending: boolean;
-    interactionType: InteractionType | null;
-    diceConfig: DiceConfig | null;
-    cardDeckId: string | null;
-    isStart: boolean;
-  };
-  choices: {
-    id: string;
-    text: string;
-    nextNode: string;
-  }[];
-  cards: {
-    id: string;
-    label: string;
-    description: string | null;
-    icon: string | null;
-    color: string | null;
-    sortOrder: number;
-  }[];
-  events: {
-    id: string;
-    nodeKey: string;
-    choiceId: string | null;
-    choiceText: string | null;
-    selectedCards: string[] | null;
-    freeText: string | null;
-    diceResult: DiceResult | null;
-    created: string;
-  }[];
-}
-
-/** Request body for POST /api/record-event */
-interface RecordEventRequest {
-  choiceId?: string;
-  selectedCards?: string[];
-  freeText?: string;
-  diceResult?: DiceResult;
-}
-
-/** Response from POST /api/record-event */
-interface RecordEventResponse {
-  success: boolean;
-  event: {
-    id: string;
-    nodeKey: string;
-    choiceId: string | null;
-    choiceText: string | null;
-  };
-  nextNodeKey: string;
-}
+import { LocalStorageService } from './local-storage.service';
 
 /**
  * Service for managing story state and progression
- * Supports multi-story, emotion cards, dice rolls, and free-text interactions
+ * Uses LocalStorage for persistence (no backend required)
  */
 @Injectable({
   providedIn: 'root'
 })
 export class StoryService {
-  private pb = inject(PocketBaseService);
+  private storage = inject(LocalStorageService);
 
   // Current story context
   private _currentStory = signal<Story | null>(null);
@@ -144,7 +80,30 @@ export class StoryService {
   });
 
   constructor() {
-    console.log('StoryService initialized');
+    console.log('StoryService initialized (LocalStorage mode)');
+  }
+
+  /**
+   * Determine current node based on events history
+   * If no events, return start node. Otherwise, follow the last choice's nextNode.
+   */
+  private getCurrentNodeKey(storyId: string): string {
+    const events = this.storage.getEventsByStoryId(storyId);
+    if (events.length === 0) {
+      return 'start';
+    }
+
+    // Get the last event that has a choice
+    const lastChoiceEvent = [...events].reverse().find(e => e.choiceId);
+    if (lastChoiceEvent) {
+      const choice = this.storage.getChoiceById(lastChoiceEvent.choiceId!);
+      if (choice) {
+        return choice.nextNode;
+      }
+    }
+
+    // If no choice events, still on start
+    return 'start';
   }
 
   /**
@@ -157,67 +116,107 @@ export class StoryService {
     this.resetInteractionState();
 
     try {
-      const response = await this.pb.client.send<StoryContextResponse>('/api/story-context', {
-        method: 'GET',
-        query: { storyId }
-      });
+      // Get story
+      const storedStory = this.storage.getStoryById(storyId);
+      if (!storedStory) {
+        throw new Error('Story not found');
+      }
 
-      // Map story
       this._currentStory.set({
-        id: response.story.id,
-        name: response.story.name,
-        description: response.story.description ?? undefined,
-        ownerId: '',
-        isPublished: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        id: storedStory.id,
+        name: storedStory.name,
+        description: storedStory.description || undefined,
+        ownerId: 'local-gamemaster',
+        isPublished: storedStory.isPublished,
+        createdAt: new Date(storedStory.created),
+        updatedAt: new Date(storedStory.updated)
       });
 
-      // Map response to StoryNode
+      // Get current node key
+      const currentNodeKey = this.getCurrentNodeKey(storyId);
+      const storedNode = this.storage.getNodeByKey(storyId, currentNodeKey);
+      
+      if (!storedNode) {
+        throw new Error(`Node "${currentNodeKey}" not found`);
+      }
+
+      // Get choices for this node
+      const storedChoices = this.storage.getChoicesByNodeId(storedNode.id);
+
+      // Map to StoryNode
       const node: StoryNode = {
-        id: response.currentNode.id,
+        id: storedNode.id,
         storyId: storyId,
-        nodeKey: response.currentNode.nodeKey,
-        title: response.currentNode.title ?? undefined,
-        text: response.currentNode.text,
-        interactionType: response.currentNode.interactionType ?? 'choice',
-        choices: response.choices.map(c => ({
+        nodeKey: storedNode.nodeKey,
+        title: storedNode.title || undefined,
+        text: storedNode.text,
+        interactionType: storedNode.interactionType ?? 'choice',
+        choices: storedChoices.map(c => ({
           id: c.id,
           text: c.text,
           nextNode: c.nextNode
         })),
-        cardDeckId: response.currentNode.cardDeckId ?? undefined,
-        diceConfig: response.currentNode.diceConfig ?? undefined,
-        media: response.currentNode.media ?? undefined,
-        pending: response.currentNode.pending,
-        isStart: response.currentNode.isStart
+        cardDeckId: storedNode.cardDeckId || undefined,
+        diceConfig: storedNode.diceConfig || undefined,
+        media: storedNode.media || undefined,
+        pending: storedNode.pending,
+        isStart: storedNode.isStart
       };
       this._currentNode.set(node);
 
-      // Map emotion cards
-      this._availableCards.set(response.cards.map(c => ({
-        id: c.id,
-        deckId: response.currentNode.cardDeckId ?? '',
-        label: c.label,
-        description: c.description ?? undefined,
-        icon: c.icon ?? undefined,
-        color: c.color ?? undefined,
-        sortOrder: c.sortOrder
-      })));
+      // Get emotion cards if node has a card deck
+      if (storedNode.cardDeckId) {
+        const cards = this.storage.getEmotionCardsByDeckId(storedNode.cardDeckId);
+        this._availableCards.set(cards.map(c => ({
+          id: c.id,
+          deckId: c.deckId,
+          label: c.label,
+          description: c.description || undefined,
+          icon: c.icon || undefined,
+          color: c.color || undefined,
+          sortOrder: c.sortOrder
+        })));
+      } else {
+        // Use global deck if no specific deck
+        const globalDeck = this.storage.getGlobalDeck();
+        if (globalDeck) {
+          const cards = this.storage.getEmotionCardsByDeckId(globalDeck.id);
+          this._availableCards.set(cards.map(c => ({
+            id: c.id,
+            deckId: c.deckId,
+            label: c.label,
+            description: c.description || undefined,
+            icon: c.icon || undefined,
+            color: c.color || undefined,
+            sortOrder: c.sortOrder
+          })));
+        } else {
+          this._availableCards.set([]);
+        }
+      }
 
-      // Map events
-      const events: StoryEvent[] = response.events.map(ev => ({
-        id: ev.id,
-        storyId: storyId,
-        userId: '',
-        nodeKey: ev.nodeKey,
-        choiceId: ev.choiceId ?? undefined,
-        choiceText: ev.choiceText ?? undefined,
-        selectedCards: ev.selectedCards ?? undefined,
-        freeText: ev.freeText ?? undefined,
-        diceResult: ev.diceResult ?? undefined,
-        timestamp: new Date(ev.created)
-      }));
+      // Get events history
+      const storedEvents = this.storage.getEventsByStoryId(storyId);
+      const events: StoryEvent[] = storedEvents.map(ev => {
+        // Get choice text if choice was made
+        let choiceText: string | undefined;
+        if (ev.choiceId) {
+          const choice = this.storage.getChoiceById(ev.choiceId);
+          choiceText = choice?.text;
+        }
+        return {
+          id: ev.id,
+          storyId: storyId,
+          userId: 'local-gamemaster',
+          nodeKey: ev.nodeKey,
+          choiceId: ev.choiceId || undefined,
+          choiceText: choiceText || ev.choiceText || undefined,
+          selectedCards: ev.selectedCards || undefined,
+          freeText: ev.freeText || undefined,
+          diceResult: ev.diceResult || undefined,
+          timestamp: new Date(ev.created)
+        };
+      });
       this._storyHistory.set(events);
 
       console.log('Story context loaded:', node.nodeKey);
@@ -235,7 +234,6 @@ export class StoryService {
    * @deprecated Use loadStoryContext(storyId) instead
    */
   async loadCurrentNode(): Promise<void> {
-    // For backward compatibility, try to load without story ID
     const storyId = this._currentStory()?.id;
     if (storyId) {
       await this.loadStoryContext(storyId);
@@ -272,8 +270,10 @@ export class StoryService {
    */
   async submitInteraction(choiceId?: string): Promise<void> {
     const storyId = this._currentStory()?.id;
-    if (!storyId) {
-      this._error.set('No story selected');
+    const currentNode = this._currentNode();
+    
+    if (!storyId || !currentNode) {
+      this._error.set('No story or node selected');
       return;
     }
 
@@ -281,18 +281,22 @@ export class StoryService {
     this._error.set(null);
 
     try {
-      const body: RecordEventRequest = {};
+      // Get choice text if choice was selected
+      let choiceText: string | null = null;
+      if (choiceId) {
+        const choice = currentNode.choices.find(c => c.id === choiceId);
+        choiceText = choice?.text || null;
+      }
 
-      if (choiceId) body.choiceId = choiceId;
-      if (this._selectedCards().length > 0) body.selectedCards = this._selectedCards();
-      if (this._freeText().trim()) body.freeText = this._freeText().trim();
-      if (this._diceResult()) body.diceResult = this._diceResult()!;
-
-      await this.pb.client.send<RecordEventResponse>('/api/record-event', {
-        method: 'POST',
-        query: { storyId },
-        body: JSON.stringify(body),
-        headers: { 'Content-Type': 'application/json' }
+      // Create event
+      this.storage.createEvent({
+        storyId: storyId,
+        nodeKey: currentNode.nodeKey,
+        choiceId: choiceId || null,
+        choiceText: choiceText,
+        selectedCards: this._selectedCards().length > 0 ? this._selectedCards() : null,
+        freeText: this._freeText().trim() || null,
+        diceResult: this._diceResult()
       });
 
       // Reload the context to get new state
@@ -323,11 +327,9 @@ export class StoryService {
     if (!storyId) return;
 
     try {
-      await this.pb.client.send('/api/reset-story', {
-        method: 'POST',
-        query: { storyId }
-      });
+      this.storage.clearEventsForStory(storyId);
       await this.loadStoryContext(storyId);
+      console.log('Story reset');
     } catch (err: any) {
       console.error('Reset story failed:', err);
     }

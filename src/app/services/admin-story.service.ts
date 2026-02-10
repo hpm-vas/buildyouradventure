@@ -1,24 +1,30 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { RecordModel } from 'pocketbase';
-import { PocketBaseService } from './pocketbase.service';
-import { AuthService } from './auth.service';
+import { LocalStorageService, StoredStory, StoredStoryNode, StoredChoice } from './local-storage.service';
 import { InteractionType, DiceConfig } from '../models/story.model';
 
 /**
- * PocketBase record interface for stories
+ * Record interface for stories (compatible with existing components)
  */
-export interface StoryRecord extends RecordModel {
+export interface StoryRecord {
+  id: string;
+  collectionId?: string;
+  collectionName?: string;
   name: string;
   description: string;
   owner_id: string;
   is_published: boolean;
   cover_image: string;
+  created: string;
+  updated: string;
 }
 
 /**
- * PocketBase record interface for story nodes
+ * Record interface for story nodes (compatible with existing components)
  */
-export interface StoryNodeRecord extends RecordModel {
+export interface StoryNodeRecord {
+  id: string;
+  collectionId?: string;
+  collectionName?: string;
   story_id: string;
   node_key: string;
   title: string;
@@ -29,15 +35,21 @@ export interface StoryNodeRecord extends RecordModel {
   interaction_type: InteractionType | null;
   dice_config: DiceConfig | null;
   card_deck_id: string | null;
+  created: string;
+  updated: string;
 }
 
 /**
- * PocketBase record interface for choices
+ * Record interface for choices (compatible with existing components)
  */
-export interface ChoiceRecord extends RecordModel {
+export interface ChoiceRecord {
+  id: string;
+  collectionId?: string;
+  collectionName?: string;
   node_id: string;
   text: string;
   next_node: string;
+  created: string;
 }
 
 /**
@@ -84,14 +96,13 @@ export interface StoryNodeWithChoices {
 
 /**
  * Service for managing story content in the admin panel
- * Provides CRUD operations for story_nodes and choices collections
+ * Uses LocalStorage for persistence (no backend required)
  */
 @Injectable({
   providedIn: 'root'
 })
 export class AdminStoryService {
-  private readonly pb = inject(PocketBaseService);
-  private readonly authService = inject(AuthService);
+  private readonly storage = inject(LocalStorageService);
 
   // Current story context
   private _currentStory = signal<StoryRecord | null>(null);
@@ -134,6 +145,56 @@ export class AdminStoryService {
   // =====================
 
   /**
+   * Convert stored story to record format
+   */
+  private toStoryRecord(s: StoredStory): StoryRecord {
+    return {
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      owner_id: 'local-gamemaster',
+      is_published: s.isPublished,
+      cover_image: s.coverImage,
+      created: s.created,
+      updated: s.updated
+    };
+  }
+
+  /**
+   * Convert stored node to record format
+   */
+  private toNodeRecord(n: StoredStoryNode): StoryNodeRecord {
+    return {
+      id: n.id,
+      story_id: n.storyId,
+      node_key: n.nodeKey,
+      title: n.title,
+      text: n.text,
+      media: n.media ? [n.media] : null,
+      pending: n.pending,
+      is_start: n.isStart,
+      interaction_type: n.interactionType,
+      dice_config: n.diceConfig,
+      card_deck_id: n.cardDeckId,
+      created: n.created,
+      updated: n.updated
+    };
+  }
+
+  /**
+   * Convert stored choice to record format
+   */
+  private toChoiceRecord(c: StoredChoice): ChoiceRecord {
+    return {
+      id: c.id,
+      node_id: c.nodeId,
+      text: c.text,
+      next_node: c.nextNode,
+      created: c.created
+    };
+  }
+
+  /**
    * Load all available stories
    */
   async loadStories(): Promise<void> {
@@ -141,19 +202,14 @@ export class AdminStoryService {
     this._error.set(null);
 
     try {
-      console.log('loadStories: fetching stories...');
-      const stories = await this.pb.collection<StoryRecord>('stories').getFullList({
-        sort: '-created'
-      });
+      console.log('loadStories: fetching from localStorage...');
+      const stories = this.storage.getStories().map(s => this.toStoryRecord(s));
       console.log('loadStories: received', stories.length, 'stories');
       this._stories.set(stories);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load stories';
       console.error('AdminStoryService.loadStories error:', e);
-      // Don't show "superuser" errors - likely a PocketBase admin panel issue
-      if (!message.includes('superuser')) {
-        this._error.set(message);
-      }
+      this._error.set(message);
     } finally {
       this._loading.set(false);
     }
@@ -165,7 +221,11 @@ export class AdminStoryService {
   async selectStory(storyId: string): Promise<void> {
     console.log('AdminStoryService.selectStory called with id:', storyId);
     try {
-      const story = await this.pb.collection<StoryRecord>('stories').getOne(storyId);
+      const stored = this.storage.getStoryById(storyId);
+      if (!stored) {
+        throw new Error('Story not found');
+      }
+      const story = this.toStoryRecord(stored);
       console.log('Fetched story for selection:', story);
       this._currentStory.set(story);
       await this.loadAll();
@@ -186,47 +246,28 @@ export class AdminStoryService {
     console.log('createStory called with name:', name, 'description:', description);
 
     try {
-      const userId = this.authService.user()?.id;
-      if (!userId) {
-        throw new Error('You must be logged in to create a story');
-      }
+      // Create the story
+      const stored = this.storage.createStory(name, description || '');
+      const story = this.toStoryRecord(stored);
 
-      const storyData = {
-        name,
-        description: description || '',
-        is_published: false,
-        owner_id: userId
-      };
-
-      const response = await this.pb.collection<StoryRecord>('stories').create(storyData);
-
-      console.log('PocketBase returned story:', response);
-      console.log('Story name from response:', response.name);
-
-      // Ensure the story has all fields (PocketBase might not return them all)
-      const story: StoryRecord = {
-        ...response,
-        name: response.name || name,
-        description: response.description || description || '',
-        is_published: response.is_published ?? false,
-        owner_id: response.owner_id || userId,
-        cover_image: response.cover_image || ''
-      };
-
-      console.log('Final story object:', story);
+      console.log('Created story:', story);
 
       // Create default start node
-      await this.pb.collection<StoryNodeRecord>('story_nodes').create({
-        story_id: story.id,
-        node_key: 'start',
+      this.storage.createNode({
+        storyId: story.id,
+        nodeKey: 'start',
         title: 'Beginning',
         text: '<!-- Add your story content here -->',
+        media: null,
         pending: true,
-        is_start: true
+        isStart: true,
+        interactionType: null,
+        diceConfig: null,
+        cardDeckId: null
       });
 
       this._stories.update(list => [story, ...list]);
-      this._error.set(null); // Clear any previous error on success
+      this._error.set(null);
       return story;
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to create story';
@@ -265,16 +306,8 @@ export class AdminStoryService {
     this._error.set(null);
 
     try {
-      const [nodes, choices] = await Promise.all([
-        this.pb.collection<StoryNodeRecord>('story_nodes').getFullList({
-          filter: `story_id = '${storyId}'`,
-          sort: 'node_key'
-        }),
-        this.pb.collection<ChoiceRecord>('choices').getFullList({
-          filter: `node_id.story_id = '${storyId}'`,
-          sort: 'created'
-        })
-      ]);
+      const nodes = this.storage.getNodesByStoryId(storyId).map(n => this.toNodeRecord(n));
+      const choices = this.storage.getChoicesByStoryId(storyId).map(c => this.toChoiceRecord(c));
 
       this._nodes.set(nodes);
       this._choices.set(choices);
@@ -291,28 +324,18 @@ export class AdminStoryService {
    * Get a single node by its node_key
    */
   async getNodeByKey(nodeKey: string): Promise<StoryNodeRecord | null> {
-    try {
-      const result = await this.pb.collection<StoryNodeRecord>('story_nodes').getFirstListItem(
-        `node_key = "${nodeKey}"`
-      );
-      return result;
-    } catch {
-      return null;
-    }
+    const storyId = this._currentStory()?.id;
+    if (!storyId) return null;
+    
+    const stored = this.storage.getNodeByKey(storyId, nodeKey);
+    return stored ? this.toNodeRecord(stored) : null;
   }
 
   /**
    * Get choices for a specific node
    */
   async getChoicesForNode(nodeId: string): Promise<ChoiceRecord[]> {
-    try {
-      return await this.pb.collection<ChoiceRecord>('choices').getFullList({
-        filter: `node_id = "${nodeId}"`,
-        sort: 'created'
-      });
-    } catch {
-      return [];
-    }
+    return this.storage.getChoicesByNodeId(nodeId).map(c => this.toChoiceRecord(c));
   }
 
   // =====================
@@ -333,25 +356,20 @@ export class AdminStoryService {
     this._error.set(null);
 
     try {
-      // If marking as start, clear existing start node first
-      if (data.is_start) {
-        await this.clearStartNode();
-      }
-
-      const node = await this.pb.collection<StoryNodeRecord>('story_nodes').create({
-        story_id: storyId,
-        node_key: data.node_key,
+      const stored = this.storage.createNode({
+        storyId: storyId,
+        nodeKey: data.node_key,
         title: data.title || '',
         text: data.text,
-        media: data.media || null,
+        media: data.media?.[0] || null,
         pending: data.pending ?? false,
-        is_start: data.is_start ?? false,
-        interaction_type: data.interaction_type || null,
-        dice_config: data.dice_config || null,
-        card_deck_id: data.card_deck_id || null
+        isStart: data.is_start ?? false,
+        interactionType: data.interaction_type || null,
+        diceConfig: data.dice_config || null,
+        cardDeckId: data.card_deck_id || null
       });
 
-      // Update local state
+      const node = this.toNodeRecord(stored);
       this._nodes.update(nodes => [...nodes, node]);
       return node;
     } catch (e) {
@@ -388,14 +406,24 @@ export class AdminStoryService {
     this._error.set(null);
 
     try {
-      // If marking as start, clear existing start node first
-      if (data.is_start) {
-        await this.clearStartNode();
+      // Map form data to storage format
+      const updates: any = {};
+      if (data.node_key !== undefined) updates.nodeKey = data.node_key;
+      if (data.title !== undefined) updates.title = data.title;
+      if (data.text !== undefined) updates.text = data.text;
+      if (data.media !== undefined) updates.media = data.media?.[0] || null;
+      if (data.pending !== undefined) updates.pending = data.pending;
+      if (data.is_start !== undefined) updates.isStart = data.is_start;
+      if (data.interaction_type !== undefined) updates.interactionType = data.interaction_type;
+      if (data.dice_config !== undefined) updates.diceConfig = data.dice_config;
+      if (data.card_deck_id !== undefined) updates.cardDeckId = data.card_deck_id;
+
+      const stored = this.storage.updateNode(id, updates);
+      if (!stored) {
+        throw new Error('Node not found');
       }
 
-      const node = await this.pb.collection<StoryNodeRecord>('story_nodes').update(id, data);
-
-      // Update local state
+      const node = this.toNodeRecord(stored);
       this._nodes.update(nodes => 
         nodes.map(n => n.id === id ? node : n)
       );
@@ -418,7 +446,7 @@ export class AdminStoryService {
     this._error.set(null);
 
     try {
-      await this.pb.collection<StoryNodeRecord>('story_nodes').delete(id);
+      this.storage.deleteNode(id);
 
       // Update local state (choices cascade delete on server)
       this._nodes.update(nodes => nodes.filter(n => n.id !== id));
@@ -442,15 +470,13 @@ export class AdminStoryService {
     this._error.set(null);
 
     try {
-      // Clear existing start node
-      await this.clearStartNode();
+      // Set new start node (storage handles clearing old start automatically)
+      const stored = this.storage.updateNode(nodeId, { isStart: true });
+      if (!stored) {
+        throw new Error('Node not found');
+      }
 
-      // Set new start node
-      const node = await this.pb.collection<StoryNodeRecord>('story_nodes').update(nodeId, {
-        is_start: true
-      });
-
-      // Update local state
+      const node = this.toNodeRecord(stored);
       this._nodes.update(nodes => 
         nodes.map(n => n.id === nodeId ? node : { ...n, is_start: false })
       );
@@ -462,18 +488,6 @@ export class AdminStoryService {
       return false;
     } finally {
       this._loading.set(false);
-    }
-  }
-
-  /**
-   * Clear the is_start flag from the current start node
-   */
-  private async clearStartNode(): Promise<void> {
-    const currentStart = this._nodes().find(n => n.is_start);
-    if (currentStart) {
-      await this.pb.collection<StoryNodeRecord>('story_nodes').update(currentStart.id, {
-        is_start: false
-      });
     }
   }
 
@@ -496,13 +510,13 @@ export class AdminStoryService {
         await this.createDummyNode(data.next_node);
       }
 
-      const choice = await this.pb.collection<ChoiceRecord>('choices').create({
-        node_id: data.node_id,
+      const stored = this.storage.createChoice({
+        nodeId: data.node_id,
         text: data.text,
-        next_node: data.next_node
+        nextNode: data.next_node
       });
 
-      // Update local state
+      const choice = this.toChoiceRecord(stored);
       this._choices.update(choices => [...choices, choice]);
       return choice;
     } catch (e) {
@@ -531,9 +545,18 @@ export class AdminStoryService {
         }
       }
 
-      const choice = await this.pb.collection<ChoiceRecord>('choices').update(id, data);
+      // Map form data to storage format
+      const updates: any = {};
+      if (data.node_id !== undefined) updates.nodeId = data.node_id;
+      if (data.text !== undefined) updates.text = data.text;
+      if (data.next_node !== undefined) updates.nextNode = data.next_node;
 
-      // Update local state
+      const stored = this.storage.updateChoice(id, updates);
+      if (!stored) {
+        throw new Error('Choice not found');
+      }
+
+      const choice = this.toChoiceRecord(stored);
       this._choices.update(choices => 
         choices.map(c => c.id === id ? choice : c)
       );
@@ -556,7 +579,7 @@ export class AdminStoryService {
     this._error.set(null);
 
     try {
-      await this.pb.collection<ChoiceRecord>('choices').delete(id);
+      this.storage.deleteChoice(id);
 
       // Update local state
       this._choices.update(choices => choices.filter(c => c.id !== id));

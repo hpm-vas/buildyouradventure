@@ -69,5 +69,5 @@ curl -X POST http://127.0.0.1:8090/api/pin-login \
   -d '{"pin": "000000"}'
 
 # Response:
-# { "token": "eyJ...", "user": { "id": "...", "role": "admin", "name": "Game Master" } }
+# { "token": "eyJ...", "user": { "id": "...", "role": "gamemaster", "name": "Game Master" } }
 ```

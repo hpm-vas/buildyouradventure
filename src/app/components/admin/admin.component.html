@@ -1,27 +1,106 @@
 <div class="admin-container">
   @if (!storyService.currentStory()) {
     <!-- Story Selection View -->
-    <div class="story-selection">
+    <div class="story-selection" [attr.aria-busy]="storyService.loading()">
       <header class="story-selection-header">
-        <h2>Select a Story to Edit</h2>
+        <div class="header-title">
+          <h2 id="admin-story-heading">Select a Story to Edit</h2>
+          @if (!storyService.loading() && storyService.stories().length > 0) {
+            <span class="story-count" aria-live="polite">
+              {{ filteredStories().length }}
+              @if (storySearchQuery()) { of {{ storyService.stories().length }} }
+              {{ filteredStories().length === 1 ? 'story' : 'stories' }}
+            </span>
+          }
+        </div>
         <button class="btn-primary" (click)="openCreateStoryDialog()">+ New Story</button>
       </header>
 
+      @if (!storyService.loading() && storyService.stories().length > 0) {
+        <div class="header-controls">
+          <div class="search-box">
+            <label for="admin-story-search" class="visually-hidden">Search stories</label>
+            <input 
+              id="admin-story-search"
+              type="search"
+              [ngModel]="storySearchQuery()"
+              (ngModelChange)="storySearchQuery.set($event)"
+              placeholder="Search stories..."
+            />
+          </div>
+          
+          <div class="sort-controls">
+            <label for="admin-story-sort" class="visually-hidden">Sort by</label>
+            <select 
+              id="admin-story-sort"
+              [ngModel]="storySortOption()"
+              (ngModelChange)="storySortOption.set($event)"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="alphabetical">A-Z</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      <!-- Status announcements for screen readers -->
+      <div class="visually-hidden" aria-live="polite" aria-atomic="true">
+        @if (storyService.loading()) {
+          Loading stories, please wait...
+        } @else if (storyService.error()) {
+          Error: {{ storyService.error() }}
+        } @else if (storyService.stories().length === 0) {
+          No stories available.
+        } @else if (filteredStories().length === 0) {
+          No stories match your search.
+        }
+      </div>
+
       @if (storyService.error()) {
-        <div class="error-banner">{{ storyService.error() }}</div>
+        <div class="error-banner" role="alert">{{ storyService.error() }}</div>
       }
 
       @if (storyService.loading()) {
-        <div class="loading">Loading stories...</div>
+        <div class="story-grid skeleton-grid" aria-hidden="true">
+          @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+            <div class="story-card skeleton">
+              <div class="skeleton-title"></div>
+              <div class="skeleton-desc"></div>
+              <div class="skeleton-badge"></div>
+            </div>
+          }
+        </div>
       } @else if (storyService.stories().length === 0) {
         <div class="empty-state">
           <p>No stories yet. Create your first story to get started!</p>
           <button class="btn-primary" (click)="openCreateStoryDialog()">+ Create Story</button>
         </div>
+      } @else if (filteredStories().length === 0) {
+        <div class="empty-state">
+          <p>No stories match "{{ storySearchQuery() }}"</p>
+          <button class="btn-secondary" (click)="storySearchQuery.set('')">Clear search</button>
+        </div>
       } @else {
-        <div class="story-grid">
-          @for (story of storyService.stories(); track story.id) {
-            <div class="story-card" (click)="selectStory(story)">
+        <div 
+          class="story-grid" 
+          role="list"
+          aria-labelledby="admin-story-heading"
+          (keydown)="onStoryGridKeydown($event)"
+        >
+          @for (story of filteredStories(); track story.id; let i = $index) {
+            <div 
+              #storyCard
+              class="story-card"
+              role="listitem"
+              tabindex="0"
+              [attr.aria-label]="'Edit story: ' + (story.name || 'Untitled') + (story.description ? '. ' + story.description : '') + (story.is_published ? '. Published' : '. Draft')"
+              [class.focused]="storyFocusedIndex() === i"
+              (click)="selectStory(story)"
+              (keydown.enter)="selectStory(story)"
+              (keydown.space)="selectStory(story); $event.preventDefault()"
+              (focus)="storyFocusedIndex.set(i)"
+            >
               <h3 [class.untitled]="!story.name">{{ story.name || 'Untitled Story' }}</h3>
               @if (story.description) {
                 <p>{{ story.description }}</p>
@@ -39,9 +118,9 @@
       }
 
       @if (showCreateStoryDialog()) {
-        <div class="dialog-backdrop" (click)="closeCreateStoryDialog()">
-          <div class="dialog" (click)="$event.stopPropagation()">
-            <h3>Create New Story</h3>
+        <div class="dialog-backdrop" (click)="closeCreateStoryDialog()" (keydown.escape)="closeCreateStoryDialog()">
+          <div class="dialog" role="dialog" aria-labelledby="create-story-title" (click)="$event.stopPropagation()">
+            <h3 id="create-story-title">Create New Story</h3>
             <div class="form-group">
               <label for="storyName">Story Name</label>
               <input 
@@ -63,7 +142,7 @@
               ></textarea>
             </div>
             @if (storyService.error()) {
-              <div class="error-message">{{ storyService.error() }}</div>
+              <div class="error-message" role="alert">{{ storyService.error() }}</div>
             }
             <div class="dialog-actions">
               <button class="btn-secondary" (click)="closeCreateStoryDialog()">Cancel</button>

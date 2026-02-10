@@ -1,4 +1,4 @@
-import { Component, signal, inject, OnInit, computed, viewChild, effect } from '@angular/core';
+import { Component, signal, inject, OnInit, computed, viewChild, effect, ViewChildren, QueryList, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AdminStoryService, StoryNodeRecord, ChoiceRecord, StoryRecord } from '../../services/admin-story.service';
@@ -8,6 +8,7 @@ import { StoryGraphComponent } from './story-graph/story-graph.component';
 
 type ViewMode = 'graph' | 'list';
 type EditorMode = 'closed' | 'create' | 'edit';
+type SortOption = 'newest' | 'oldest' | 'alphabetical';
 
 @Component({
   selector: 'app-admin',
@@ -21,17 +22,53 @@ export class AdminComponent implements OnInit {
   readonly authService = inject(AuthService);
 
   readonly graphComponent = viewChild(StoryGraphComponent);
+  @ViewChildren('storyCard') storyCards!: QueryList<ElementRef<HTMLElement>>;
 
   // Story management
   readonly showCreateStoryDialog = signal(false);
   readonly newStoryName = signal('');
   readonly newStoryDescription = signal('');
 
+  // Story selection state (search, sort, keyboard nav)
+  readonly storySearchQuery = signal('');
+  readonly storySortOption = signal<SortOption>('newest');
+  readonly storyFocusedIndex = signal(0);
+
   // View state
   readonly viewMode = signal<ViewMode>('graph');
   readonly editorMode = signal<EditorMode>('closed');
   readonly selectedNodeId = signal<string | null>(null);
   readonly searchQuery = signal('');
+
+  // Computed: filtered and sorted stories
+  readonly filteredStories = computed(() => {
+    const query = this.storySearchQuery().toLowerCase().trim();
+    const sort = this.storySortOption();
+    let result = [...this.storyService.stories()];
+
+    // Filter by search query
+    if (query) {
+      result = result.filter(story =>
+        (story.name && story.name.toLowerCase().includes(query)) ||
+        (story.description && story.description.toLowerCase().includes(query))
+      );
+    }
+
+    // Sort
+    switch (sort) {
+      case 'newest':
+        result.sort((a, b) => new Date(b['created'] as string).getTime() - new Date(a['created'] as string).getTime());
+        break;
+      case 'oldest':
+        result.sort((a, b) => new Date(a['created'] as string).getTime() - new Date(b['created'] as string).getTime());
+        break;
+      case 'alphabetical':
+        result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        break;
+    }
+
+    return result;
+  });
 
   // Computed values
   readonly selectedNode = computed(() => {
@@ -100,6 +137,65 @@ export class AdminComponent implements OnInit {
     } catch (e) {
       console.error('selectStory error:', e);
       alert('Error selecting story: ' + (e instanceof Error ? e.message : e));
+    }
+  }
+
+  /** Handle keyboard navigation within the story grid */
+  onStoryGridKeydown(event: KeyboardEvent): void {
+    const stories = this.filteredStories();
+    if (stories.length === 0) return;
+
+    const currentIndex = this.storyFocusedIndex();
+    let newIndex = currentIndex;
+
+    // Calculate grid columns based on card positions
+    const cards = this.storyCards?.toArray();
+    if (!cards || cards.length === 0) return;
+    
+    let cols = 1;
+    if (cards.length >= 2) {
+      const firstTop = cards[0].nativeElement.getBoundingClientRect().top;
+      for (let i = 1; i < cards.length; i++) {
+        if (cards[i].nativeElement.getBoundingClientRect().top === firstTop) {
+          cols = i + 1;
+        } else {
+          break;
+        }
+      }
+    }
+
+    switch (event.key) {
+      case 'ArrowRight':
+        newIndex = Math.min(currentIndex + 1, stories.length - 1);
+        event.preventDefault();
+        break;
+      case 'ArrowLeft':
+        newIndex = Math.max(currentIndex - 1, 0);
+        event.preventDefault();
+        break;
+      case 'ArrowDown':
+        newIndex = Math.min(currentIndex + cols, stories.length - 1);
+        event.preventDefault();
+        break;
+      case 'ArrowUp':
+        newIndex = Math.max(currentIndex - cols, 0);
+        event.preventDefault();
+        break;
+      case 'Home':
+        newIndex = 0;
+        event.preventDefault();
+        break;
+      case 'End':
+        newIndex = stories.length - 1;
+        event.preventDefault();
+        break;
+      default:
+        return;
+    }
+
+    if (newIndex !== currentIndex) {
+      this.storyFocusedIndex.set(newIndex);
+      cards[newIndex]?.nativeElement.focus();
     }
   }
 

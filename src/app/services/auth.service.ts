@@ -1,8 +1,6 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
-import { PocketBaseService } from './pocketbase.service';
-import type { UserRole } from './pocketbase.service';
+import { Injectable, signal, computed } from '@angular/core';
 
-export type { UserRole } from './pocketbase.service';
+export type UserRole = 'player' | 'reader' | 'gamemaster';
 
 export interface User {
   id: string;
@@ -11,98 +9,51 @@ export interface User {
 }
 
 /**
- * Service for handling PIN-based authentication
- * Uses Angular Signals for reactive state management
+ * Simplified auth service - single gamemaster mode
+ * No actual authentication, always returns admin user
  */
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly pb = inject(PocketBaseService);
-
-  private _user = signal<User | null>(null);
-  private _loading = signal(false);
-  private _error = signal<string | null>(null);
+  // Hardcoded gamemaster user for single-user local mode
+  private readonly _user = signal<User>({
+    id: 'local-gamemaster',
+    role: 'gamemaster',
+    name: 'Game Master'
+  });
+  
+  private readonly _loading = signal(false);
+  private readonly _error = signal<string | null>(null);
 
   readonly user = this._user.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   
-  // Delegate auth state to PocketBase service
-  readonly isAuthenticated = this.pb.isAuthenticated;
+  // Always authenticated in local mode
+  readonly isAuthenticated = signal(true).asReadonly();
 
-  readonly role = computed(() => this._user()?.role ?? null);
-  readonly isAdmin = computed(() => {
-    const role = this._user()?.role;
-    return role === 'admin' || role === 'gamemaster';
-  });
+  readonly role = computed(() => this._user()?.role ?? 'gamemaster');
+  readonly isAdmin = computed(() => true);
 
   constructor() {
-    // Try to restore session on init
-    this.restoreSession();
+    console.log('AuthService: Running in local gamemaster mode');
   }
 
   /**
-   * Restore user session from stored token
+   * Login is a no-op in local mode - always succeeds
+   * @deprecated Not needed in local mode
    */
-  private restoreSession(): void {
-    const token = this.pb.token();
-
-    if (token && this.pb.isAuthenticated()) {
-      // Decode user from token payload (base64)
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        this._user.set({
-          id: payload.id || payload.sub,
-          role: payload.role,
-          name: payload.name
-        });
-        console.log('Session restored for:', payload.name || payload.id);
-      } catch (e) {
-        console.error('Failed to restore session:', e);
-        this.logout();
-      }
-    }
+  async loginWithPin(_pin: string): Promise<boolean> {
+    return true;
   }
 
   /**
-   * Authenticate with a 6-digit PIN
-   */
-  async loginWithPin(pin: string): Promise<boolean> {
-    this._loading.set(true);
-    this._error.set(null);
-
-    try {
-      const response = await this.pb.loginWithPin(pin);
-
-      // Set user state
-      this._user.set({
-        id: response.user.id,
-        role: response.user.role,
-        name: response.user.name
-      });
-
-      console.log('Login successful:', response.user.name || response.user.id);
-      return true;
-
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Login failed';
-      this._error.set(message);
-      console.error('Login failed:', message);
-      return false;
-
-    } finally {
-      this._loading.set(false);
-    }
-  }
-
-  /**
-   * Clear authentication state
+   * Logout is a no-op in local mode
+   * @deprecated Not needed in local mode  
    */
   logout(): void {
-    this.pb.logout();
-    this._user.set(null);
-    this._error.set(null);
+    // No-op - always authenticated in local mode
   }
 
   /**

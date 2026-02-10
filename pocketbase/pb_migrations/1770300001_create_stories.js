@@ -60,9 +60,9 @@ migrate((app) => {
     ],
     listRule: "@request.auth.id != ''",
     viewRule: "@request.auth.id != ''",
-    createRule: "@request.auth.role = 'admin'",
-    updateRule: "@request.auth.role = 'admin'",
-    deleteRule: "@request.auth.role = 'admin'"
+    createRule: "@request.auth.role = 'gamemaster'",
+    updateRule: "@request.auth.role = 'gamemaster'",
+    deleteRule: "@request.auth.role = 'gamemaster'"
   });
 
   return app.save(collection);

@@ -42,12 +42,13 @@ Supported interaction configurations (as GM-defined per Story-Part):
 • Textfield
 
 3. User Roles & Functionality  
-The Game Master (GM)  
-• Story-Part Architect: Writes each Story-Part (chapter/block) narrative and sets the scene.  
-• Interaction Designer: For each Story-Part, selects exactly one primary interaction type: Choice-only, Card+Choice, or Card+Textfield; optionally enables dice rolls for Choice-only or Card+Choice.  
-• Card Manager: Defines the Emotion Card set (deck) available to players per Story-Part where cards are enabled.  
-• Multi-Story Manager: Creates and manages multiple distinct stories; ensures each story’s content and interaction logs are kept separate.  
-• All GM-authored Story-Parts, interaction configurations, and Emotion Card deck definitions must be persisted to durable storage and restored after program restart.
+GM Story Management Workflow  
+• Story Selection Page: Upon login, the GM is directed to a dedicated story management page (/admin/stories) listing all existing stories.  
+• Create New Story: GM can create a new story by providing a name and optional description. Upon creation, the system automatically generates an empty start node (node_key: 'start') for immediate authoring.  
+• Story Selection: GM selects a story to work on; the admin interface then displays only that story's nodes and choices.  
+• Single-Story Session: Once a story is selected, the GM works exclusively on that story. To switch to a different story, the GM must logout and login again.  
+• Start Node Convention: Each story's entry point is determined by the node with node_key === 'start'. This node is auto-created and its key cannot be changed.  
+• Node Key Scoping: Node keys are unique only within a story, allowing the same key names (e.g., 'intro', 'ending') to be reused across different stories.
 
 The Player  
 • Narrative Agency: Participates via GM-defined interactions (choices, optional emotion cards, optional dice rolls, and/or text entry).  

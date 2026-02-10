@@ -1,17 +1,33 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { RecordModel } from 'pocketbase';
 import { PocketBaseService } from './pocketbase.service';
+import { InteractionType, DiceConfig } from '../models/story.model';
+
+/**
+ * PocketBase record interface for stories
+ */
+export interface StoryRecord extends RecordModel {
+  name: string;
+  description: string;
+  owner_id: string;
+  is_published: boolean;
+  cover_image: string;
+}
 
 /**
  * PocketBase record interface for story nodes
  */
 export interface StoryNodeRecord extends RecordModel {
+  story_id: string;
   node_key: string;
   title: string;
   text: string;
   media: MediaItem[] | null;
   pending: boolean;
   is_start: boolean;
+  interaction_type: InteractionType | null;
+  dice_config: DiceConfig | null;
+  card_deck_id: string | null;
 }
 
 /**
@@ -36,12 +52,16 @@ export interface MediaItem {
  * Form data for creating/updating story nodes
  */
 export interface StoryNodeFormData {
+  story_id: string;
   node_key: string;
   title?: string;
   text: string;
   media?: MediaItem[];
   pending?: boolean;
   is_start?: boolean;
+  interaction_type?: InteractionType;
+  dice_config?: DiceConfig;
+  card_deck_id?: string;
 }
 
 /**
@@ -71,12 +91,18 @@ export interface StoryNodeWithChoices {
 export class AdminStoryService {
   private readonly pb = inject(PocketBaseService);
 
+  // Current story context
+  private _currentStory = signal<StoryRecord | null>(null);
+  private _stories = signal<StoryRecord[]>([]);
+
   // Reactive state
   private _nodes = signal<StoryNodeRecord[]>([]);
   private _choices = signal<ChoiceRecord[]>([]);
   private _loading = signal(false);
   private _error = signal<string | null>(null);
 
+  readonly currentStory = this._currentStory.asReadonly();
+  readonly stories = this._stories.asReadonly();
   readonly nodes = this._nodes.asReadonly();
   readonly choices = this._choices.asReadonly();
   readonly loading = this._loading.asReadonly();
@@ -102,22 +128,115 @@ export class AdminStoryService {
   );
 
   // =====================
+  // STORY OPERATIONS
+  // =====================
+
+  /**
+   * Load all available stories
+   */
+  async loadStories(): Promise<void> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    try {
+      const stories = await this.pb.collection<StoryRecord>('stories').getFullList({
+        sort: '-created'
+      });
+      this._stories.set(stories);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to load stories';
+      this._error.set(message);
+      console.error('AdminStoryService.loadStories error:', e);
+    } finally {
+      this._loading.set(false);
+    }
+  }
+
+  /**
+   * Select a story to work with
+   */
+  async selectStory(storyId: string): Promise<void> {
+    try {
+      const story = await this.pb.collection<StoryRecord>('stories').getOne(storyId);
+      this._currentStory.set(story);
+      await this.loadAll();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to select story';
+      this._error.set(message);
+      console.error('AdminStoryService.selectStory error:', e);
+    }
+  }
+
+  /**
+   * Create a new story with auto-generated start node
+   */
+  async createStory(name: string, description?: string): Promise<StoryRecord | null> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    try {
+      const story = await this.pb.collection<StoryRecord>('stories').create({
+        name,
+        description: description || '',
+        is_published: false
+      });
+
+      // Create default start node
+      await this.pb.collection<StoryNodeRecord>('story_nodes').create({
+        story_id: story.id,
+        node_key: 'start',
+        title: 'Beginning',
+        text: '<!-- Add your story content here -->',
+        pending: true,
+        is_start: true
+      });
+
+      this._stories.update(list => [story, ...list]);
+      return story;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to create story';
+      this._error.set(message);
+      console.error('AdminStoryService.createStory error:', e);
+      return null;
+    } finally {
+      this._loading.set(false);
+    }
+  }
+
+  /**
+   * Clear story selection
+   */
+  clearStorySelection(): void {
+    this._currentStory.set(null);
+    this._nodes.set([]);
+    this._choices.set([]);
+  }
+
+  // =====================
   // FETCH OPERATIONS
   // =====================
 
   /**
-   * Load all story nodes and choices from the database
+   * Load all story nodes and choices for the current story
    */
   async loadAll(): Promise<void> {
+    const storyId = this._currentStory()?.id;
+    if (!storyId) {
+      this._error.set('No story selected');
+      return;
+    }
+
     this._loading.set(true);
     this._error.set(null);
 
     try {
       const [nodes, choices] = await Promise.all([
         this.pb.collection<StoryNodeRecord>('story_nodes').getFullList({
+          filter: `story_id = '${storyId}'`,
           sort: 'node_key'
         }),
         this.pb.collection<ChoiceRecord>('choices').getFullList({
+          filter: `node_id.story_id = '${storyId}'`,
           sort: 'created'
         })
       ]);
@@ -169,6 +288,12 @@ export class AdminStoryService {
    * Create a new story node
    */
   async createNode(data: StoryNodeFormData): Promise<StoryNodeRecord | null> {
+    const storyId = this._currentStory()?.id;
+    if (!storyId) {
+      this._error.set('No story selected');
+      return null;
+    }
+
     this._loading.set(true);
     this._error.set(null);
 
@@ -179,12 +304,16 @@ export class AdminStoryService {
       }
 
       const node = await this.pb.collection<StoryNodeRecord>('story_nodes').create({
+        story_id: storyId,
         node_key: data.node_key,
         title: data.title || '',
         text: data.text,
         media: data.media || null,
         pending: data.pending ?? false,
-        is_start: data.is_start ?? false
+        is_start: data.is_start ?? false,
+        interaction_type: data.interaction_type || null,
+        dice_config: data.dice_config || null,
+        card_deck_id: data.card_deck_id || null
       });
 
       // Update local state
@@ -204,7 +333,11 @@ export class AdminStoryService {
    * Create a dummy/placeholder node with just the node_key
    */
   async createDummyNode(nodeKey: string): Promise<StoryNodeRecord | null> {
+    const storyId = this._currentStory()?.id;
+    if (!storyId) return null;
+
     return this.createNode({
+      story_id: storyId,
       node_key: nodeKey,
       title: '',
       text: '<!-- Placeholder node - add content -->',

@@ -1,22 +1,95 @@
 <div class="admin-container">
-  <!-- Header -->
-  <header class="admin-header">
-    <h2>Story Editor</h2>
-    <div class="header-stats">
-      <span class="stat">
-        <strong>{{ stats().total }}</strong> nodes
-      </span>
-      <span class="stat complete">
-        <strong>{{ stats().complete }}</strong> complete
-      </span>
-      <span class="stat dummy">
-        <strong>{{ stats().dummy }}</strong> placeholder
-      </span>
-      @if (!stats().hasStart) {
-        <span class="stat warning">⚠️ No start node</span>
+  @if (!storyService.currentStory()) {
+    <!-- Story Selection View -->
+    <div class="story-selection">
+      <header class="story-selection-header">
+        <h2>Select a Story to Edit</h2>
+        <button class="btn-primary" (click)="openCreateStoryDialog()">+ New Story</button>
+      </header>
+
+      @if (storyService.loading()) {
+        <div class="loading">Loading stories...</div>
+      } @else if (storyService.stories().length === 0) {
+        <div class="empty-state">
+          <p>No stories yet. Create your first story to get started!</p>
+          <button class="btn-primary" (click)="openCreateStoryDialog()">+ Create Story</button>
+        </div>
+      } @else {
+        <div class="story-grid">
+          @for (story of storyService.stories(); track story.id) {
+            <div class="story-card" (click)="selectStory(story)">
+              <h3>{{ story.name }}</h3>
+              @if (story.description) {
+                <p>{{ story.description }}</p>
+              }
+              <div class="story-meta">
+                @if (story.is_published) {
+                  <span class="badge published">Published</span>
+                } @else {
+                  <span class="badge draft">Draft</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      @if (showCreateStoryDialog()) {
+        <div class="dialog-backdrop" (click)="closeCreateStoryDialog()">
+          <div class="dialog" (click)="$event.stopPropagation()">
+            <h3>Create New Story</h3>
+            <div class="form-group">
+              <label for="storyName">Story Name</label>
+              <input 
+                type="text" 
+                id="storyName"
+                [ngModel]="newStoryName()"
+                (ngModelChange)="newStoryName.set($event)"
+                placeholder="Enter story name"
+              />
+            </div>
+            <div class="form-group">
+              <label for="storyDesc">Description (optional)</label>
+              <textarea 
+                id="storyDesc"
+                [ngModel]="newStoryDescription()"
+                (ngModelChange)="newStoryDescription.set($event)"
+                rows="3"
+                placeholder="Brief description of your story"
+              ></textarea>
+            </div>
+            <div class="dialog-actions">
+              <button class="btn-secondary" (click)="closeCreateStoryDialog()">Cancel</button>
+              <button class="btn-primary" (click)="createStory()" [disabled]="!newStoryName().trim()">
+                Create Story
+              </button>
+            </div>
+          </div>
+        </div>
       }
     </div>
-  </header>
+  } @else {
+    <!-- Story Editor View -->
+    <header class="admin-header">
+      <div class="header-left">
+        <button class="btn-back" (click)="backToStories()">← Stories</button>
+        <h2>{{ storyService.currentStory()?.name }}</h2>
+      </div>
+      <div class="header-stats">
+        <span class="stat">
+          <strong>{{ stats().total }}</strong> nodes
+        </span>
+        <span class="stat complete">
+          <strong>{{ stats().complete }}</strong> complete
+        </span>
+        <span class="stat dummy">
+          <strong>{{ stats().dummy }}</strong> placeholder
+        </span>
+        @if (!stats().hasStart) {
+          <span class="stat warning">⚠️ No start node</span>
+        }
+      </div>
+    </header>
 
   <div class="admin-content">
     @if (!requiresStartNode()) {
@@ -133,4 +206,5 @@
       <button (click)="storyService.clearError()">✕</button>
     </div>
   }
+  } <!-- end of @else for story editor view -->
 </div>

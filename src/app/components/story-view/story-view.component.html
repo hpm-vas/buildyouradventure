@@ -1,45 +1,144 @@
 <article class="story-view">
-  @if (storyService.loading()) {
-    <div class="loading">
-      <p>Loading story...</p>
-    </div>
-  } @else if (storyService.error()) {
-    <div class="error">
-      <p>{{ storyService.error() }}</p>
-      <button (click)="storyService.loadCurrentNode()">Retry</button>
-    </div>
+  <!-- Story Selection -->
+  @if (!storyService.currentStory()) {
+    <app-story-select (storySelected)="onStorySelected($event)" />
   } @else {
-    @if (storyService.currentNode(); as node) {
-      <header class="story-header">
-        @if (node.title) {
-          <h2>{{ node.title }}</h2>
+    <!-- Story Header with Back Button -->
+    <nav class="story-nav">
+      <button class="btn-back" (click)="storyService.resetInteractionState()">
+        &larr; Stories
+      </button>
+      <h1 class="story-title">{{ storyService.currentStory()?.name }}</h1>
+    </nav>
+
+    @if (storyService.loading()) {
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Loading story...</p>
+      </div>
+    } @else if (storyService.error()) {
+      <div class="error">
+        <p>{{ storyService.error() }}</p>
+        <button (click)="storyService.loadStoryContext(storyService.currentStory()!.id)">Retry</button>
+      </div>
+    } @else {
+      @if (storyService.currentNode(); as node) {
+        <header class="story-header">
+          @if (node.title) {
+            <h2>{{ node.title }}</h2>
+          }
+        </header>
+
+        <section class="story-content">
+          <div [innerHTML]="node.text"></div>
+        </section>
+
+        <!-- Media (if present) -->
+        @if (node.media) {
+          <section class="story-media">
+            @if (node.media.type === 'image') {
+              <img [src]="node.media.url" [alt]="node.media.alt || 'Story image'" />
+            } @else if (node.media.type === 'audio') {
+              <audio controls [src]="node.media.url"></audio>
+            }
+          </section>
         }
-      </header>
 
-      <section class="story-content">
-        <div [innerHTML]="node.text"></div>
-      </section>
+        <!-- Interaction Area -->
+        <section class="story-interactions">
+          <!-- Emotion Cards (if required) -->
+          @if (storyService.requiresCards() && storyService.availableCards().length > 0) {
+            <app-emotion-cards
+              [cards]="storyService.availableCards()"
+              [selectedIds]="storyService.selectedCards()"
+              [minSelect]="1"
+              [maxSelect]="3"
+              label="How does your character feel?"
+              [disabled]="storyService.loading()"
+              (selectionChange)="onCardsSelected($event)"
+            />
+          }
 
-      @if (node.choices.length > 0) {
-        <section class="story-choices">
-          @for (choice of node.choices; track choice.id) {
-            <button 
-              class="choice-btn" 
-              (click)="selectChoice(choice.id)"
-              [disabled]="storyService.loading()">
-              {{ choice.text }}
-            </button>
+          <!-- Dice Roller (if required) -->
+          @if (storyService.requiresDice() && node.diceConfig) {
+            <app-dice-roller
+              [config]="node.diceConfig"
+              [result]="storyService.diceResult()"
+              [disabled]="storyService.loading()"
+              (rolled)="onDiceRolled($event)"
+            />
+          }
+
+          <!-- Free Text Input (if required or available) -->
+          @if (storyService.requiresText()) {
+            <app-free-text-input
+              [value]="freeText()"
+              label="Your response"
+              placeholder="Write your character's response..."
+              [disabled]="storyService.loading()"
+              (valueChange)="onTextChanged($event)"
+            />
+          }
+
+          <!-- Choices (if available) -->
+          @if (storyService.hasChoices() && node.choices.length > 0) {
+            <div class="story-choices">
+              @for (choice of node.choices; track choice.id) {
+                <button 
+                  class="choice-btn" 
+                  (click)="selectChoice(choice.id)"
+                  [disabled]="storyService.loading() || !canSubmit">
+                  {{ choice.text }}
+                </button>
+              }
+            </div>
+          } @else if (!storyService.hasChoices()) {
+            <!-- Submit button for non-choice interactions -->
+            <div class="story-submit">
+              <button 
+                class="btn-submit"
+                (click)="submitInteraction()"
+                [disabled]="storyService.loading() || !canSubmit">
+                {{ storyService.loading() ? 'Submitting...' : 'Submit Response' }}
+              </button>
+            </div>
+          } @else if (node.pending) {
+            <div class="story-pending">
+              <p><em>Awaiting next chapter from the Game Master...</em></p>
+            </div>
           }
         </section>
+
+        <!-- Story History/Archive -->
+        @if (storyService.storyHistory().length > 0) {
+          <section class="story-history">
+            <h3>Your Journey</h3>
+            <div class="history-timeline">
+              @for (event of storyService.storyHistory(); track event.id) {
+                <div class="history-entry">
+                  <span class="history-node">{{ event.nodeKey }}</span>
+                  @if (event.choiceText) {
+                    <span class="history-choice">→ {{ event.choiceText }}</span>
+                  }
+                  @if (event.selectedCards && event.selectedCards.length > 0) {
+                    <span class="history-cards">🎴 {{ event.selectedCards.length }} card(s)</span>
+                  }
+                  @if (event.diceResult) {
+                    <span class="history-dice">🎲 {{ event.diceResult.finalTotal }}</span>
+                  }
+                  @if (event.freeText) {
+                    <span class="history-text">💬 "{{ event.freeText | slice:0:50 }}..."</span>
+                  }
+                </div>
+              }
+            </div>
+          </section>
+        }
       } @else {
-        <section class="story-pending">
-          <p><em>Awaiting next chapter...</em></p>
-        </section>
+        <div class="no-content">
+          <p>No story content available. The story may not have a starting point yet.</p>
+        </div>
       }
-    } @else {
-      <div class="no-content">
-        <p>No story content available. Please create a "start" node in PocketBase.</p>
-      </div>
     }
   }
 </article>

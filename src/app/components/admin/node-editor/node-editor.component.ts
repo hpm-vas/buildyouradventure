@@ -455,8 +455,9 @@ export class NodeEditorComponent implements OnInit {
   readonly showPreview = signal(false);
   readonly editableChoices = signal<EditableChoice[]>([]);
 
-  // Form data
+  // Form data - story_id will be set from currentStory
   formData: StoryNodeFormData = {
+    story_id: '',
     node_key: '',
     title: '',
     text: '',
@@ -494,8 +495,10 @@ export class NodeEditorComponent implements OnInit {
     // Update form when node changes
     effect(() => {
       const node = this.selectedNode();
+      const storyId = this.storyService.currentStory()?.id || '';
       if (node) {
         this.formData = {
+          story_id: storyId,
           node_key: node.node_key,
           title: node.title || '',
           text: node.text || '',
@@ -616,7 +619,9 @@ export class NodeEditorComponent implements OnInit {
   }
 
   private resetForm(): void {
+    const storyId = this.storyService.currentStory()?.id || '';
     this.formData = {
+      story_id: storyId,
       node_key: '',
       title: '',
       text: '',

@@ -1,6 +1,7 @@
 import { Component, signal, inject, OnInit, computed, viewChild, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { AdminStoryService, StoryNodeRecord, ChoiceRecord } from '../../services/admin-story.service';
+import { CommonModule } from '@angular/common';
+import { AdminStoryService, StoryNodeRecord, ChoiceRecord, StoryRecord } from '../../services/admin-story.service';
 import { AuthService } from '../../services/auth.service';
 import { NodeEditorComponent } from './node-editor/node-editor.component';
 import { StoryGraphComponent } from './story-graph/story-graph.component';
@@ -11,7 +12,7 @@ type EditorMode = 'closed' | 'create' | 'edit';
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [FormsModule, NodeEditorComponent, StoryGraphComponent],
+  imports: [FormsModule, CommonModule, NodeEditorComponent, StoryGraphComponent],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss'
 })
@@ -20,6 +21,11 @@ export class AdminComponent implements OnInit {
   readonly authService = inject(AuthService);
 
   readonly graphComponent = viewChild(StoryGraphComponent);
+
+  // Story management
+  readonly showCreateStoryDialog = signal(false);
+  readonly newStoryName = signal('');
+  readonly newStoryDescription = signal('');
 
   // View state
   readonly viewMode = signal<ViewMode>('graph');
@@ -74,7 +80,41 @@ export class AdminComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.storyService.loadAll();
+    // Load available stories on init
+    this.storyService.loadStories();
+  }
+
+  // Story selection
+  selectStory(story: StoryRecord): void {
+    this.storyService.selectStory(story.id);
+  }
+
+  backToStories(): void {
+    this.storyService.clearStorySelection();
+    this.closeEditor();
+  }
+
+  openCreateStoryDialog(): void {
+    this.newStoryName.set('');
+    this.newStoryDescription.set('');
+    this.showCreateStoryDialog.set(true);
+  }
+
+  closeCreateStoryDialog(): void {
+    this.showCreateStoryDialog.set(false);
+  }
+
+  async createStory(): Promise<void> {
+    const name = this.newStoryName().trim();
+    const description = this.newStoryDescription().trim();
+    
+    if (!name) return;
+
+    const story = await this.storyService.createStory(name, description);
+    if (story) {
+      this.closeCreateStoryDialog();
+      this.selectStory(story);
+    }
   }
 
   // View toggle

@@ -2,7 +2,7 @@ import { Injectable, signal, computed } from '@angular/core';
 import PocketBase, { RecordModel } from 'pocketbase';
 import { environment } from '../../environments/environment';
 
-export type UserRole = 'player' | 'reader' | 'admin';
+export type UserRole = 'player' | 'reader' | 'admin' | 'gamemaster';
 
 export interface UserRecord extends RecordModel {
   pin: string;

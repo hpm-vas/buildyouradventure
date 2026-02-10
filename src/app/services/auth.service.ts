@@ -32,7 +32,10 @@ export class AuthService {
   readonly isAuthenticated = this.pb.isAuthenticated;
 
   readonly role = computed(() => this._user()?.role ?? null);
-  readonly isAdmin = computed(() => this._user()?.role === 'admin');
+  readonly isAdmin = computed(() => {
+    const role = this._user()?.role;
+    return role === 'admin' || role === 'gamemaster';
+  });
 
   constructor() {
     // Try to restore session on init

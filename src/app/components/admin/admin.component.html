@@ -58,10 +58,13 @@
                 placeholder="Brief description of your story"
               ></textarea>
             </div>
+            @if (storyService.error()) {
+              <div class="error-message">{{ storyService.error() }}</div>
+            }
             <div class="dialog-actions">
               <button class="btn-secondary" (click)="closeCreateStoryDialog()">Cancel</button>
-              <button class="btn-primary" (click)="createStory()" [disabled]="!newStoryName().trim()">
-                Create Story
+              <button class="btn-primary" (click)="createStory()" [disabled]="!newStoryName().trim() || storyService.loading()">
+                {{ storyService.loading() ? 'Creating...' : 'Create Story' }}
               </button>
             </div>
           </div>

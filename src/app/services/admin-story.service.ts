@@ -1,6 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { RecordModel } from 'pocketbase';
 import { PocketBaseService } from './pocketbase.service';
+import { AuthService } from './auth.service';
 import { InteractionType, DiceConfig } from '../models/story.model';
 
 /**
@@ -90,6 +91,7 @@ export interface StoryNodeWithChoices {
 })
 export class AdminStoryService {
   private readonly pb = inject(PocketBaseService);
+  private readonly authService = inject(AuthService);
 
   // Current story context
   private _currentStory = signal<StoryRecord | null>(null);
@@ -175,10 +177,16 @@ export class AdminStoryService {
     this._error.set(null);
 
     try {
+      const userId = this.authService.user()?.id;
+      if (!userId) {
+        throw new Error('You must be logged in to create a story');
+      }
+
       const story = await this.pb.collection<StoryRecord>('stories').create({
         name,
         description: description || '',
-        is_published: false
+        is_published: false,
+        owner_id: userId
       });
 
       // Create default start node

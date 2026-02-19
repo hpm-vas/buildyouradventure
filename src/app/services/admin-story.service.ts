@@ -143,6 +143,21 @@ export class AdminStoryService {
   );
 
   /**
+   * Get count of choices pointing TO a specific node (incoming connections)
+   */
+  getIncomingChoiceCount(nodeKey: string): number {
+    return this._choices().filter(c => c.next_node === nodeKey).length;
+  }
+
+  /**
+   * Check if a node can be deleted (not start node and no incoming connections)
+   */
+  isNodeDeletable(node: StoryNodeRecord): boolean {
+    if (node.is_start) return false;
+    return this.getIncomingChoiceCount(node.node_key) === 0;
+  }
+
+  /**
    * Check if text is a placeholder/dummy value
    */
   isPlaceholderText(text: string): boolean {

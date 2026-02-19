@@ -37,6 +37,15 @@ type EditorMode = 'create' | 'edit' | 'start';
             >
               ⭐
             </button>
+            <button 
+              type="button"
+              class="btn-icon btn-danger"
+              [disabled]="!canDelete()"
+              [title]="canDelete() ? 'Delete this node' : deleteBlockedReason()"
+              (click)="onDeleteNode()"
+            >
+              🗑️
+            </button>
           }
           @if (!forceStartNode()) {
             <button type="button" class="btn-secondary" (click)="close.emit()">✕</button>
@@ -564,6 +573,7 @@ export class NodeEditorComponent implements OnInit {
   // Outputs
   readonly close = output<void>();
   readonly saved = output<StoryNodeRecord>();
+  readonly deleteNode = output<StoryNodeRecord>();
 
   // Local state
   readonly showPreview = signal(false);
@@ -610,6 +620,25 @@ export class NodeEditorComponent implements OnInit {
     return this.storyService.nodes()
       .filter(n => n.node_key !== currentNodeKey)
       .sort((a, b) => a.node_key.localeCompare(b.node_key));
+  });
+
+  /** Check if current node can be deleted */
+  readonly canDelete = computed(() => {
+    const node = this.selectedNode();
+    if (!node) return false;
+    return this.storyService.isNodeDeletable(node);
+  });
+
+  /** Get reason why node cannot be deleted */
+  readonly deleteBlockedReason = computed(() => {
+    const node = this.selectedNode();
+    if (!node) return '';
+    if (node.is_start) return 'Cannot delete start node';
+    const incomingCount = this.storyService.getIncomingChoiceCount(node.node_key);
+    if (incomingCount > 0) {
+      return `Cannot delete: ${incomingCount} choice${incomingCount > 1 ? 's' : ''} point to this node`;
+    }
+    return '';
   });
 
   isValid(): boolean {
@@ -824,6 +853,13 @@ export class NodeEditorComponent implements OnInit {
     const nodeId = this.nodeId();
     if (nodeId) {
       await this.storyService.setStartNode(nodeId);
+    }
+  }
+
+  onDeleteNode(): void {
+    const node = this.selectedNode();
+    if (node && this.canDelete()) {
+      this.deleteNode.emit(node);
     }
   }
 

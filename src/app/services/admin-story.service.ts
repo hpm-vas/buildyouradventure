@@ -67,6 +67,7 @@ export interface ChoiceRecord {
   next_node: string;
   type?: 'button' | 'freetext';
   placeholder?: string;
+  dice_config?: DiceConfig;
   created: string;
 }
 
@@ -103,6 +104,7 @@ export interface ChoiceFormData {
   next_node: string;
   type?: 'button' | 'freetext';
   placeholder?: string;
+  dice_config?: DiceConfig;
 }
 
 /**
@@ -238,6 +240,7 @@ export class AdminStoryService {
       next_node: c.nextNode,
       type: (c.type as 'button' | 'freetext') || 'button',
       placeholder: c.placeholder,
+      dice_config: c.diceConfig,
       created: c.created
     };
   }
@@ -664,7 +667,8 @@ export class AdminStoryService {
         text: data.text,
         nextNode: data.next_node,
         type: data.type,
-        placeholder: data.placeholder
+        placeholder: data.placeholder,
+        diceConfig: data.dice_config
       });
 
       const choice = this.toChoiceRecord(stored);
@@ -703,6 +707,7 @@ export class AdminStoryService {
       if (data.next_node !== undefined) updates.nextNode = data.next_node;
       if (data.type !== undefined) updates.type = data.type;
       if (data.placeholder !== undefined) updates.placeholder = data.placeholder;
+      if (data.dice_config !== undefined) updates.diceConfig = data.dice_config;
 
       const stored = this.storage.updateChoice(id, updates);
       if (!stored) {

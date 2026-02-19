@@ -86,6 +86,7 @@ export class StoryService {
   /**
    * Determine current node based on events history
    * If no events, return start node. Otherwise, follow the last choice's nextNode.
+   * For dice-based choices, uses successNode/failureNode based on the stored result.
    */
   private getCurrentNodeKey(storyId: string): string {
     const events = this.storage.getEventsByStoryId(storyId);
@@ -98,6 +99,15 @@ export class StoryService {
     if (lastChoiceEvent) {
       const choice = this.storage.getChoiceById(lastChoiceEvent.choiceId!);
       if (choice) {
+        // Check for dice-based branching
+        if (choice.diceConfig?.successThreshold && lastChoiceEvent.diceResult) {
+          const isSuccess = lastChoiceEvent.diceResult.success;
+          if (isSuccess && choice.diceConfig.successNode) {
+            return choice.diceConfig.successNode;
+          } else if (!isSuccess && choice.diceConfig.failureNode) {
+            return choice.diceConfig.failureNode;
+          }
+        }
         return choice.nextNode;
       }
     }
@@ -156,7 +166,8 @@ export class StoryService {
           text: c.text,
           nextNode: c.nextNode,
           type: (c.type as 'button' | 'freetext') || 'button',
-          placeholder: c.placeholder
+          placeholder: c.placeholder,
+          diceConfig: c.diceConfig
         })),
         cardDeckId: storedNode.cardDeckId || undefined,
         diceConfig: storedNode.diceConfig || undefined,

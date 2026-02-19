@@ -2,6 +2,7 @@ import { Component, inject, signal, computed, input, output, effect, OnInit } fr
 import { FormsModule } from '@angular/forms';
 import { marked } from 'marked';
 import { AdminStoryService, StoryNodeRecord, ChoiceRecord, StoryNodeFormData } from '../../../services/admin-story.service';
+import { DiceConfig, DiceType } from '../../../models/story.model';
 
 interface EditableChoice {
   id?: string;
@@ -9,6 +10,8 @@ interface EditableChoice {
   next_node: string;
   type?: 'button' | 'freetext';
   placeholder?: string;
+  diceConfig?: DiceConfig;
+  showDiceConfig?: boolean;
   isNew?: boolean;
   useCustomTarget?: boolean; // When true, shows text input instead of dropdown
 }
@@ -29,16 +32,6 @@ type EditorMode = 'create' | 'edit' | 'start';
         <h3>{{ editorTitle() }}</h3>
         <div class="header-actions">
           @if (!isNewNode() && !forceStartNode()) {
-            <button 
-              type="button"
-              class="btn-icon"
-              [class.active]="selectedNode()?.is_start"
-              [disabled]="selectedNode()?.is_start"
-              (click)="setAsStart()"
-              title="Set as story start"
-            >
-              ⭐
-            </button>
             <button 
               type="button"
               class="btn-icon btn-danger"
@@ -68,8 +61,12 @@ type EditorMode = 'create' | 'edit' | 'start';
             [disabled]="!isNewNode()"
             placeholder="e.g., prolog-1, forest-clearing"
             required
+            [class.input-error]="isNewNode() && isDuplicateNodeKey()"
           />
           <small class="hint">Lowercase letters, numbers, and hyphens only</small>
+          @if (isNewNode() && isDuplicateNodeKey()) {
+            <small class="error-hint">This node key already exists. Please choose a different key.</small>
+          }
         </div>
 
         <!-- Title -->
@@ -115,7 +112,10 @@ type EditorMode = 'create' | 'edit' | 'start';
         <div class="choices-section">
           <div class="section-header">
             <h4>Choices</h4>
-            <button type="button" class="btn-small" (click)="addChoice()">+ Add Choice</button>
+            <div class="section-header-actions">
+              <button type="button" class="btn-small btn-secondary-small" (click)="openPlaceholderDialog()">+ Add Placeholder Node</button>
+              <button type="button" class="btn-small" (click)="addChoice()">+ Add Choice</button>
+            </div>
           </div>
 
           @for (choice of editableChoices(); track choice.id ?? $index) {
@@ -129,6 +129,15 @@ type EditorMode = 'create' | 'edit' | 'start';
                 <option value="button">Button</option>
                 <option value="freetext">Freetext</option>
               </select>
+              <button 
+                type="button" 
+                class="btn-icon"
+                [class.active]="choice.showDiceConfig"
+                (click)="toggleDiceConfig($index)"
+                title="Toggle dice roll"
+              >
+                🎲
+              </button>
               <input 
                 type="text"
                 [(ngModel)]="choice.text"
@@ -159,7 +168,6 @@ type EditorMode = 'create' | 'edit' | 'start';
                     [(ngModel)]="choice.next_node"
                     [name]="'choiceNextNode' + $index"
                     class="choice-target-select"
-                    (ngModelChange)="onTargetNodeChange($index, $event)"
                   >
                     <option value="" disabled>Select target node...</option>
                     @for (node of availableNodes(); track node.node_key) {
@@ -167,7 +175,6 @@ type EditorMode = 'create' | 'edit' | 'start';
                         {{ node.node_key }}{{ node.title ? ' (' + node.title + ')' : '' }}
                       </option>
                     }
-                    <option value="__new__">+ Create new node...</option>
                   </select>
                 }
               </div>
@@ -189,6 +196,37 @@ type EditorMode = 'create' | 'edit' | 'start';
                   placeholder="Placeholder text (optional)..."
                   class="choice-placeholder"
                 />
+              </div>
+            }
+            @if (choice.showDiceConfig && choice.diceConfig) {
+              <div class="choice-dice-config">
+                <div class="dice-config-row">
+                  <label>
+                    <span>Dice</span>
+                    <select
+                      [(ngModel)]="choice.diceConfig.diceType"
+                      [name]="'choiceDiceType' + $index"
+                    >
+                      <option value="d4">d4</option>
+                      <option value="d6">d6</option>
+                      <option value="d8">d8</option>
+                      <option value="d10">d10</option>
+                      <option value="d12">d12</option>
+                      <option value="d20">d20</option>
+                      <option value="d100">d100</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Count</span>
+                    <input 
+                      type="number"
+                      [(ngModel)]="choice.diceConfig.diceCount"
+                      [name]="'choiceDiceCount' + $index"
+                      min="1"
+                      max="10"
+                    />
+                  </label>
+                </div>
               </div>
             }
           }
@@ -215,32 +253,37 @@ type EditorMode = 'create' | 'edit' | 'start';
         }
       </form>
 
-      <!-- New Node Dialog -->
-      @if (showNewNodeDialog()) {
-        <div class="dialog-overlay" (click)="cancelNewNodeDialog()">
+      <!-- Placeholder Node Dialog -->
+      @if (showPlaceholderDialog()) {
+        <div class="dialog-overlay" (click)="cancelPlaceholderDialog()">
           <div class="dialog" (click)="$event.stopPropagation()">
-            <h4>Create New Node</h4>
+            <h4>Create Placeholder Node</h4>
+            <p class="dialog-hint">Create a new placeholder node that you can select in the choice dropdown.</p>
             <div class="form-group">
-              <label for="newNodeKey">Node Key</label>
+              <label for="placeholderNodeKey">Node Key</label>
               <input 
                 type="text" 
-                id="newNodeKey"
-                [(ngModel)]="newNodeKey"
+                id="placeholderNodeKey"
+                [(ngModel)]="placeholderNodeKey"
                 pattern="^[a-z0-9-]+$"
-                placeholder="e.g., forest-path"
-                (keyup.enter)="confirmNewNodeDialog()"
+                placeholder="e.g., new-location"
+                (keyup.enter)="confirmPlaceholderDialog()"
+                [class.input-error]="placeholderNodeKey && storyService.nodeKeyExists(placeholderNodeKey)"
               />
               <small class="hint">Lowercase letters, numbers, and hyphens only</small>
+              @if (placeholderNodeKey && storyService.nodeKeyExists(placeholderNodeKey)) {
+                <small class="error-hint">This node key already exists. Please choose a different key.</small>
+              }
             </div>
             <div class="dialog-actions">
-              <button type="button" class="btn-secondary" (click)="cancelNewNodeDialog()">Cancel</button>
+              <button type="button" class="btn-secondary" (click)="cancelPlaceholderDialog()">Cancel</button>
               <button 
                 type="button" 
                 class="btn-primary" 
-                (click)="confirmNewNodeDialog()"
-                [disabled]="!isValidNodeKey(newNodeKey)"
+                (click)="confirmPlaceholderDialog()"
+                [disabled]="!isValidNodeKey(placeholderNodeKey)"
               >
-                Create & Connect
+                Create Placeholder
               </button>
             </div>
           </div>
@@ -401,6 +444,11 @@ type EditorMode = 'create' | 'edit' | 'start';
           margin: 0;
           color: #eaeaea;
         }
+
+        .section-header-actions {
+          display: flex;
+          gap: 0.5rem;
+        }
       }
 
       .btn-small {
@@ -414,6 +462,18 @@ type EditorMode = 'create' | 'edit' | 'start';
 
         &:hover {
           background: #1a4a7a;
+        }
+      }
+
+      .btn-secondary-small {
+        background: transparent;
+        border: 1px solid #666;
+        color: #aaa;
+
+        &:hover {
+          border-color: #888;
+          color: #ccc;
+          background: transparent;
         }
       }
     }
@@ -511,6 +571,73 @@ type EditorMode = 'create' | 'edit' | 'start';
       }
     }
 
+    .choice-dice-config {
+      margin-left: 106px;
+      margin-bottom: 0.75rem;
+      margin-top: -0.25rem;
+      padding: 0.75rem;
+      background: #0f3460;
+      border-radius: 8px;
+      border: 1px solid #333;
+
+      .dice-config-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.5rem;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        label {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          font-size: 0.85rem;
+
+          span {
+            color: #888;
+          }
+
+          select, input {
+            padding: 0.4rem 0.6rem;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #16213e;
+            color: #eaeaea;
+            font-size: 0.9rem;
+            min-width: 80px;
+
+            &:focus {
+              outline: none;
+              border-color: #e94560;
+            }
+          }
+
+          input[type="number"] {
+            width: 80px;
+          }
+        }
+      }
+
+      .dice-branches {
+        label {
+          flex: 1;
+          min-width: 150px;
+
+          select {
+            width: 100%;
+          }
+        }
+      }
+    }
+
+    .btn-icon.active {
+      background: #e94560;
+      color: white;
+    }
+
     .no-choices {
       color: #888;
       font-style: italic;
@@ -595,6 +722,15 @@ type EditorMode = 'create' | 'edit' | 'start';
       color: #e94560;
     }
 
+    .error-hint {
+      color: #e94560;
+      font-size: 0.8rem;
+    }
+
+    .input-error {
+      border-color: #e94560 !important;
+    }
+
     .dialog-overlay {
       position: fixed;
       top: 0;
@@ -619,6 +755,12 @@ type EditorMode = 'create' | 'edit' | 'start';
       h4 {
         margin: 0 0 1rem;
         color: #e94560;
+      }
+
+      .dialog-hint {
+        color: #aaa;
+        font-size: 0.9rem;
+        margin: 0 0 1rem;
       }
 
       .dialog-actions {
@@ -647,11 +789,9 @@ export class NodeEditorComponent implements OnInit {
   readonly showPreview = signal(false);
   readonly editableChoices = signal<EditableChoice[]>([]);
   
-  // New node dialog state
-  readonly showNewNodeDialog = signal(false);
-  private pendingChoiceIndex = -1;
-  private previousNextNode = '';
-  newNodeKey = '';
+  // Placeholder node dialog state
+  readonly showPlaceholderDialog = signal(false);
+  placeholderNodeKey = '';
 
   // Form data - story_id will be set from currentStory
   formData: StoryNodeFormData = {
@@ -712,7 +852,12 @@ export class NodeEditorComponent implements OnInit {
   isValid(): boolean {
     const nodeKeyValid = /^[a-z0-9-]+$/.test(this.formData.node_key);
     const hasContent = this.formData.text.trim().length > 0;
-    return nodeKeyValid && hasContent;
+    const keyUnique = this.isNewNode() ? !this.storyService.nodeKeyExists(this.formData.node_key) : true;
+    return nodeKeyValid && hasContent && keyUnique;
+  }
+
+  isDuplicateNodeKey(): boolean {
+    return this.formData.node_key.length > 0 && this.storyService.nodeKeyExists(this.formData.node_key);
   }
 
   constructor() {
@@ -744,6 +889,8 @@ export class NodeEditorComponent implements OnInit {
           next_node: c.next_node,
           type: c.type || 'button',
           placeholder: c.placeholder,
+          diceConfig: c.dice_config,
+          showDiceConfig: !!c.dice_config,
           // Use custom input if target doesn't exist or is self-reference
           useCustomTarget: c.next_node === currentNodeKey || 
                           (!!c.next_node && !availableNodeKeys.has(c.next_node))
@@ -766,7 +913,7 @@ export class NodeEditorComponent implements OnInit {
   addChoice(): void {
     this.editableChoices.update(choices => [
       ...choices,
-      { text: '', next_node: '', type: 'button', isNew: true }
+      { text: '', next_node: '', type: 'button', isNew: true, showDiceConfig: false }
     ]);
   }
 
@@ -774,6 +921,22 @@ export class NodeEditorComponent implements OnInit {
     this.editableChoices.update(choices => 
       choices.filter((_, i) => i !== index)
     );
+  }
+
+  toggleDiceConfig(index: number): void {
+    this.editableChoices.update(choices => {
+      const updated = [...choices];
+      const choice = updated[index];
+      const newShow = !choice.showDiceConfig;
+      updated[index] = { 
+        ...choice, 
+        showDiceConfig: newShow,
+        diceConfig: newShow && !choice.diceConfig 
+          ? { diceType: 'd20', diceCount: 1 }
+          : choice.diceConfig
+      };
+      return updated;
+    });
   }
 
   toggleCustomTarget(index: number, useCustom: boolean): void {
@@ -784,126 +947,8 @@ export class NodeEditorComponent implements OnInit {
     });
   }
 
-  onTargetNodeChange(index: number, value: string): void {
-    if (value === '__new__') {
-      // Store the previous value and choice index
-      const choices = this.editableChoices();
-      this.previousNextNode = choices[index]?.next_node || '';
-      this.pendingChoiceIndex = index;
-      
-      // Generate suggested node key
-      const baseKey = this.formData.node_key || 'node';
-      this.newNodeKey = this.generateUniqueNodeKey(baseKey);
-      
-      // Reset the select to empty while dialog is open
-      this.editableChoices.update(choices => {
-        const updated = [...choices];
-        updated[index] = { ...updated[index], next_node: '' };
-        return updated;
-      });
-      
-      // Show the dialog
-      this.showNewNodeDialog.set(true);
-    }
-  }
-
   isValidNodeKey(key: string): boolean {
-    return /^[a-z0-9-]+$/.test(key) && key.length > 0;
-  }
-
-  async confirmNewNodeDialog(): Promise<void> {
-    if (!this.isValidNodeKey(this.newNodeKey)) return;
-    
-    const index = this.pendingChoiceIndex;
-    const nodeKey = this.newNodeKey;
-    const currentNodeId = this.nodeId();
-    
-    // Check if node key already exists
-    if (this.storyService.nodeKeyExists(nodeKey)) {
-      // Just connect to existing node
-      this.editableChoices.update(choices => {
-        const updated = [...choices];
-        updated[index] = { ...updated[index], next_node: nodeKey };
-        return updated;
-      });
-    } else {
-      // Create a new normal node
-      const storyId = this.storyService.currentStory()?.id;
-      if (!storyId) return;
-      
-      const newNode = await this.storyService.createNode({
-        story_id: storyId,
-        node_key: nodeKey,
-        title: '',
-        text: ''
-      });
-      
-      if (newNode) {
-        // Update the choice to point to the new node
-        this.editableChoices.update(choices => {
-          const updated = [...choices];
-          updated[index] = { ...updated[index], next_node: newNode.node_key };
-          return updated;
-        });
-        
-        // If editing an existing node, save the choice connection immediately
-        if (currentNodeId) {
-          const choice = this.editableChoices()[index];
-          if (choice && choice.text.trim()) {
-            if (choice.id && !choice.isNew) {
-              // Update existing choice
-              await this.storyService.updateChoice(choice.id, {
-                text: choice.text,
-                next_node: newNode.node_key
-              });
-            } else {
-              // Create new choice and update local state with the ID
-              const savedChoice = await this.storyService.createChoice({
-                node_id: currentNodeId,
-                text: choice.text || 'Go to ' + nodeKey,
-                next_node: newNode.node_key
-              });
-              if (savedChoice) {
-                this.editableChoices.update(choices => {
-                  const updated = [...choices];
-                  updated[index] = { 
-                    ...updated[index], 
-                    id: savedChoice.id, 
-                    text: savedChoice.text,
-                    next_node: savedChoice.next_node,
-                    isNew: false 
-                  };
-                  return updated;
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-    
-    // Close dialog and reset
-    this.showNewNodeDialog.set(false);
-    this.pendingChoiceIndex = -1;
-    this.newNodeKey = '';
-  }
-
-  cancelNewNodeDialog(): void {
-    // Restore previous value
-    const index = this.pendingChoiceIndex;
-    if (index >= 0) {
-      this.editableChoices.update(choices => {
-        const updated = [...choices];
-        updated[index] = { ...updated[index], next_node: this.previousNextNode };
-        return updated;
-      });
-    }
-    
-    // Close dialog and reset
-    this.showNewNodeDialog.set(false);
-    this.pendingChoiceIndex = -1;
-    this.previousNextNode = '';
-    this.newNodeKey = '';
+    return /^[a-z0-9-]+$/.test(key) && key.length > 0 && !this.storyService.nodeKeyExists(key);
   }
 
   private generateUniqueNodeKey(baseKey: string): string {
@@ -919,11 +964,26 @@ export class NodeEditorComponent implements OnInit {
     return newKey;
   }
 
-  async setAsStart(): Promise<void> {
-    const nodeId = this.nodeId();
-    if (nodeId) {
-      await this.storyService.setStartNode(nodeId);
-    }
+  // Placeholder dialog methods
+  openPlaceholderDialog(): void {
+    const baseKey = this.formData.node_key || 'placeholder';
+    this.placeholderNodeKey = this.generateUniqueNodeKey(baseKey);
+    this.showPlaceholderDialog.set(true);
+  }
+
+  async confirmPlaceholderDialog(): Promise<void> {
+    if (!this.isValidNodeKey(this.placeholderNodeKey)) return;
+
+    await this.storyService.createDummyNode(this.placeholderNodeKey);
+
+    // Close dialog and reset
+    this.showPlaceholderDialog.set(false);
+    this.placeholderNodeKey = '';
+  }
+
+  cancelPlaceholderDialog(): void {
+    this.showPlaceholderDialog.set(false);
+    this.placeholderNodeKey = '';
   }
 
   onDeleteNode(): void {
@@ -979,20 +1039,26 @@ export class NodeEditorComponent implements OnInit {
     for (const choice of currentChoices) {
       if (!choice.text.trim() || !choice.next_node.trim()) continue;
 
+      // Get dice config only if showDiceConfig is enabled
+      const diceConfig = choice.showDiceConfig ? choice.diceConfig : undefined;
+
       if (choice.id && !choice.isNew) {
         // Update existing
         const original = originalChoices.find(c => c.id === choice.id);
+        const diceConfigChanged = JSON.stringify(original?.dice_config) !== JSON.stringify(diceConfig);
         if (original && (
           original.text !== choice.text || 
           original.next_node !== choice.next_node ||
           original.type !== choice.type ||
-          original.placeholder !== choice.placeholder
+          original.placeholder !== choice.placeholder ||
+          diceConfigChanged
         )) {
           await this.storyService.updateChoice(choice.id, {
             text: choice.text,
             next_node: choice.next_node,
             type: choice.type,
-            placeholder: choice.placeholder
+            placeholder: choice.placeholder,
+            dice_config: diceConfig
           });
         }
       } else {
@@ -1002,7 +1068,8 @@ export class NodeEditorComponent implements OnInit {
           text: choice.text,
           next_node: choice.next_node,
           type: choice.type,
-          placeholder: choice.placeholder
+          placeholder: choice.placeholder,
+          dice_config: diceConfig
         });
       }
     }

@@ -83,30 +83,59 @@
           <!-- Choices (if available) -->
           @if (storyService.hasChoices() && node.choices.length > 0) {
             <div class="story-choices">
-              @for (choice of node.choices; track choice.id) {
-                @if (choice.type === 'freetext') {
-                  <div class="choice-freetext">
-                    <app-free-text-input
-                      [value]="getFreetextChoiceValue(choice.id)"
-                      [label]="choice.text"
-                      [placeholder]="choice.placeholder || 'Enter your response...'"
-                      [disabled]="storyService.loading()"
-                      (valueChange)="onFreetextChoiceChange(choice.id, $event)"
-                    />
-                    <button 
-                      class="choice-btn choice-freetext-submit"
-                      (click)="submitFreetextChoice(choice.id)"
-                      [disabled]="storyService.loading() || !getFreetextChoiceValue(choice.id)">
-                      Submit
-                    </button>
+              <!-- Pending dice roll state -->
+              @if (pendingDiceChoice(); as pendingChoice) {
+                <div class="pending-dice-choice">
+                  <div class="pending-choice-text">
+                    <span class="dice-indicator">🎲</span>
+                    {{ pendingChoice.text }}
                   </div>
-                } @else {
+                  @if (pendingChoice.diceConfig) {
+                    <app-dice-roller
+                      [config]="pendingChoice.diceConfig"
+                      [result]="storyService.diceResult()"
+                      [disabled]="storyService.loading()"
+                      (rolled)="onChoiceDiceRolled($event)"
+                    />
+                  }
                   <button 
-                    class="choice-btn" 
-                    (click)="selectChoice(choice.id)"
-                    [disabled]="storyService.loading() || !canSubmit">
-                    {{ choice.text }}
+                    class="btn-cancel"
+                    (click)="cancelDiceRoll()"
+                    [disabled]="storyService.loading()">
+                    Cancel
                   </button>
+                </div>
+              } @else {
+                @for (choice of node.choices; track choice.id) {
+                  @if (choice.type === 'freetext') {
+                    <div class="choice-freetext">
+                      <app-free-text-input
+                        [value]="getFreetextChoiceValue(choice.id)"
+                        [label]="choice.text"
+                        [placeholder]="choice.placeholder || 'Enter your response...'"
+                        [disabled]="storyService.loading()"
+                        (valueChange)="onFreetextChoiceChange(choice.id, $event)"
+                      />
+                      <button 
+                        class="choice-btn choice-freetext-submit"
+                        (click)="submitFreetextChoice(choice.id)"
+                        [disabled]="storyService.loading() || !getFreetextChoiceValue(choice.id)">
+                        Submit
+                      </button>
+                    </div>
+                  } @else {
+                    <button 
+                      class="choice-btn" 
+                      [class.has-dice]="choice.diceConfig"
+                      (click)="selectChoice(choice.id)"
+                      [disabled]="storyService.loading() || !canSubmit"
+                      [title]="choice.diceConfig ? 'Requires ' + choice.diceConfig.diceCount + choice.diceConfig.diceType + (choice.diceConfig.modifier ? (choice.diceConfig.modifier > 0 ? '+' : '') + choice.diceConfig.modifier : '') + (choice.diceConfig.successThreshold ? ' (DC ' + choice.diceConfig.successThreshold + ')' : '') : ''">
+                      @if (choice.diceConfig) {
+                        <span class="dice-indicator">🎲</span>
+                      }
+                      {{ choice.text }}
+                    </button>
+                  }
                 }
               }
             </div>

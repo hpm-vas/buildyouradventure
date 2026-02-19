@@ -5,7 +5,7 @@ import { EmotionCardsComponent } from '../emotion-cards/emotion-cards.component'
 import { DiceRollerComponent } from '../dice-roller/dice-roller.component';
 import { FreeTextInputComponent } from '../free-text-input/free-text-input.component';
 import { StorySelectComponent } from '../story-select/story-select.component';
-import { DiceResult, Story } from '../../models/story.model';
+import { DiceResult, Story, Choice } from '../../models/story.model';
 
 @Component({
   selector: 'app-story-view',
@@ -32,6 +32,9 @@ export class StoryViewComponent implements OnInit {
   // State for freetext choice values (keyed by choice ID)
   private freetextChoiceValues = signal<Record<string, string>>({});
 
+  // State for pending dice roll on a choice
+  pendingDiceChoice = signal<Choice | null>(null);
+
   ngOnInit(): void {
     const id = this.storyId();
     if (id) {
@@ -45,7 +48,37 @@ export class StoryViewComponent implements OnInit {
   }
 
   selectChoice(choiceId: string): void {
+    const node = this.storyService.currentNode();
+    const choice = node?.choices.find(c => c.id === choiceId);
+    
+    // If choice has dice config, show dice roller first
+    if (choice?.diceConfig) {
+      this.pendingDiceChoice.set(choice);
+      return;
+    }
+    
     this.storyService.submitInteraction(choiceId);
+  }
+
+  /** Handle dice roll for a choice with dice config */
+  onChoiceDiceRolled(result: DiceResult): void {
+    const choice = this.pendingDiceChoice();
+    if (!choice) return;
+    
+    // Store the dice result
+    this.storyService.setDiceResult(result);
+    
+    // Clear the pending choice
+    this.pendingDiceChoice.set(null);
+    
+    // Submit the interaction - the story service will determine the correct
+    // target node based on the dice result and choice config
+    this.storyService.submitInteraction(choice.id);
+  }
+
+  /** Cancel a pending dice roll */
+  cancelDiceRoll(): void {
+    this.pendingDiceChoice.set(null);
   }
 
   /** Get the current value for a freetext choice */

@@ -110,7 +110,7 @@ export class AdminComponent implements OnInit {
 
   readonly stats = computed(() => ({
     total: this.storyService.nodes().length,
-    complete: this.storyService.nodes().filter(n => !n.pending && n.text && !this.storyService.isPlaceholderText(n.text)).length,
+    complete: this.storyService.nodes().filter(n => n.text && !this.storyService.isPlaceholderText(n.text)).length,
     dummy: this.storyService.dummyNodeCount(),
     hasStart: !!this.storyService.startNode()
   }));
@@ -352,7 +352,7 @@ export class AdminComponent implements OnInit {
   // Helper for node status
   getNodeStatus(node: StoryNodeRecord): 'start' | 'complete' | 'dummy' {
     if (node.is_start) return 'start';
-    if (node.pending || !node.text || this.storyService.isPlaceholderText(node.text)) return 'dummy';
+    if (!node.text || this.storyService.isPlaceholderText(node.text)) return 'dummy';
     return 'complete';
   }
 

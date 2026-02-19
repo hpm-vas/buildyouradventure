@@ -159,7 +159,6 @@ export class StoryService {
         cardDeckId: storedNode.cardDeckId || undefined,
         diceConfig: storedNode.diceConfig || undefined,
         media: storedNode.media || undefined,
-        pending: storedNode.pending,
         isStart: storedNode.isStart
       };
       this._currentNode.set(node);

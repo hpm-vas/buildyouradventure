@@ -100,18 +100,6 @@ type EditorMode = 'create' | 'edit' | 'start';
           }
         </div>
 
-        <!-- Pending flag -->
-        <div class="form-group checkbox-group">
-          <label>
-            <input 
-              type="checkbox" 
-              [(ngModel)]="formData.pending"
-              name="pending"
-            />
-            Mark as pending/draft
-          </label>
-        </div>
-
         <!-- Choices Section -->
         <div class="choices-section">
           <div class="section-header">
@@ -592,8 +580,7 @@ export class NodeEditorComponent implements OnInit {
     story_id: '',
     node_key: '',
     title: '',
-    text: '',
-    pending: false
+    text: ''
   };
 
   // Computed
@@ -642,8 +629,7 @@ export class NodeEditorComponent implements OnInit {
           node_key: node.node_key,
           title: node.title || '',
           text: node.text || '',
-          media: node.media || undefined,
-          pending: node.pending || false
+          media: node.media || undefined
         };
       }
     });
@@ -742,7 +728,7 @@ export class NodeEditorComponent implements OnInit {
         return updated;
       });
     } else {
-      // Create a new normal node (not pending)
+      // Create a new normal node
       const storyId = this.storyService.currentStory()?.id;
       if (!storyId) return;
       
@@ -750,8 +736,7 @@ export class NodeEditorComponent implements OnInit {
         story_id: storyId,
         node_key: nodeKey,
         title: '',
-        text: '',
-        pending: false
+        text: ''
       });
       
       if (newNode) {
@@ -914,8 +899,7 @@ export class NodeEditorComponent implements OnInit {
       story_id: storyId,
       node_key: '',
       title: '',
-      text: '',
-      pending: false
+      text: ''
     };
     this.editableChoices.set([]);
     this.showPreview.set(false);

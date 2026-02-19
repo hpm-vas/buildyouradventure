@@ -267,7 +267,7 @@ export class StoryGraphComponent implements AfterViewInit, OnDestroy {
         label: node.title || node.node_key,
         nodeKey: node.node_key,
         isStart: node.is_start,
-        isDummy: node.pending || !node.text || node.text === PLACEHOLDER_TEXT || node.text === '<!-- Add your story content here -->'
+        isDummy: !node.text || node.text === PLACEHOLDER_TEXT || node.text === '<!-- Add your story content here -->'
       }
     }));
 
@@ -280,7 +280,7 @@ export class StoryGraphComponent implements AfterViewInit, OnDestroy {
       .map((choice, index) => {
         const targetId = nodeKeyToId.get(choice.next_node)!;
         const targetNode = nodes.find(n => n.id === targetId);
-        const isDummy = targetNode?.pending || !targetNode?.text || targetNode?.text === PLACEHOLDER_TEXT || targetNode?.text === '<!-- Add your story content here -->';
+        const isDummy = !targetNode?.text || targetNode?.text === PLACEHOLDER_TEXT || targetNode?.text === '<!-- Add your story content here -->';
         
         return {
           data: {

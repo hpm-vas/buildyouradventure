@@ -30,7 +30,6 @@ export interface StoryNodeRecord {
   title: string;
   text: string;
   media: MediaItem[] | null;
-  pending: boolean;
   is_start: boolean;
   interaction_type: InteractionType | null;
   dice_config: DiceConfig | null;
@@ -70,7 +69,6 @@ export interface StoryNodeFormData {
   title?: string;
   text: string;
   media?: MediaItem[];
-  pending?: boolean;
   is_start?: boolean;
   interaction_type?: InteractionType;
   dice_config?: DiceConfig;
@@ -141,7 +139,7 @@ export class AdminStoryService {
 
   /** Get count of dummy/placeholder nodes */
   readonly dummyNodeCount = computed(() =>
-    this._nodes().filter(n => n.pending || !n.text || this.isPlaceholderText(n.text)).length
+    this._nodes().filter(n => !n.text || this.isPlaceholderText(n.text)).length
   );
 
   /**
@@ -182,7 +180,6 @@ export class AdminStoryService {
       title: n.title,
       text: n.text,
       media: n.media ? [n.media] : null,
-      pending: n.pending,
       is_start: n.isStart,
       interaction_type: n.interactionType,
       dice_config: n.diceConfig,
@@ -273,14 +270,13 @@ export class AdminStoryService {
 
       console.log('Created story:', story);
 
-      // Create complete (non-pending) start node
+      // Create start node
       this.storage.createNode({
         storyId: story.id,
         nodeKey: 'start',
         title: startNodeData.title || 'Beginning',
         text: startNodeData.text,
         media: null,
-        pending: false,  // Not pending - has real content
         isStart: true,
         interactionType: null,
         diceConfig: null,
@@ -412,7 +408,6 @@ export class AdminStoryService {
         title: data.title || '',
         text: data.text,
         media: data.media?.[0] || null,
-        pending: data.pending ?? false,
         isStart: data.is_start ?? false,
         interactionType: data.interaction_type || null,
         diceConfig: data.dice_config || null,
@@ -443,8 +438,7 @@ export class AdminStoryService {
       story_id: storyId,
       node_key: nodeKey,
       title: '',
-      text: PLACEHOLDER_TEXT,
-      pending: true
+      text: PLACEHOLDER_TEXT
     });
   }
 
@@ -462,7 +456,6 @@ export class AdminStoryService {
       if (data.title !== undefined) updates.title = data.title;
       if (data.text !== undefined) updates.text = data.text;
       if (data.media !== undefined) updates.media = data.media?.[0] || null;
-      if (data.pending !== undefined) updates.pending = data.pending;
       if (data.is_start !== undefined) updates.isStart = data.is_start;
       if (data.interaction_type !== undefined) updates.interactionType = data.interaction_type;
       if (data.dice_config !== undefined) updates.diceConfig = data.dice_config;

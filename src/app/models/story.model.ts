@@ -75,7 +75,6 @@ export interface StoryNode {
   cardDeckId?: string;
   diceConfig?: DiceConfig;
   media?: Media;
-  pending: boolean;
   isStart: boolean;
 }
 

@@ -36,7 +36,6 @@ export interface StoredStoryNode {
   title: string;
   text: string;
   media: Media | null;
-  pending: boolean;
   isStart: boolean;
   interactionType: InteractionType | null;
   diceConfig: DiceConfig | null;

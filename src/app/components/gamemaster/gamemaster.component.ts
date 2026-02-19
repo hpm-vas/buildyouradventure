@@ -117,6 +117,13 @@ export class GamemasterComponent implements OnInit {
     hasStart: !!this.storyService.startNode()
   }));
 
+  /** Check if current story can be deleted (only has start node) */
+  readonly canDeleteCurrentStory = computed(() => {
+    const story = this.storyService.currentStory();
+    if (!story?.id) return false;
+    return this.storyService.nodes().length === 1;
+  });
+
   /** Story events in reverse chronological order (newest first) */
   readonly reversedEvents = computed(() => {
     return [...this.storyService.events()].reverse();
@@ -152,10 +159,19 @@ export class GamemasterComponent implements OnInit {
     // Load available stories on init
     this.storyService.loadStories();
     
-    // If SharedStoryService has a story selected, load it
+    // Sync with SharedStoryService
     const sharedStoryId = this.sharedStoryService.getCurrentStoryId();
-    if (sharedStoryId && !this.storyService.currentStory()) {
-      this.storyService.selectStory(sharedStoryId);
+    if (sharedStoryId) {
+      // If SharedStoryService has a story selected, load it in GamemasterStoryService
+      if (!this.storyService.currentStory() || this.storyService.currentStory()?.id !== sharedStoryId) {
+        this.storyService.selectStory(sharedStoryId);
+      }
+    } else {
+      // If SharedStoryService has no story (e.g., user clicked "Leave Story"),
+      // clear GamemasterStoryService too to show the story selection view
+      if (this.storyService.currentStory()) {
+        this.storyService.clearStorySelection();
+      }
     }
   }
 
@@ -172,6 +188,8 @@ export class GamemasterComponent implements OnInit {
     
     try {
       await this.storyService.selectStory(story.id);
+      // Sync with SharedStoryService so the header shows the correct story name
+      await this.sharedStoryService.selectStory(story.id);
     } catch (e) {
       console.error('selectStory error:', e);
       alert('Error selecting story: ' + (e instanceof Error ? e.message : e));
@@ -239,6 +257,7 @@ export class GamemasterComponent implements OnInit {
 
   backToStories(): void {
     this.storyService.clearStorySelection();
+    this.sharedStoryService.clearStory();
     this.closeEditor();
   }
 
@@ -385,6 +404,56 @@ export class GamemasterComponent implements OnInit {
       return;
     }
     await this.storyService.clearStoryHistory();
+  }
+
+  /**
+   * Check if a story can be deleted (only has a start node)
+   */
+  canDeleteStory(story: StoryRecord): boolean {
+    const result = this.storyService.hasOnlyStartNode(story.id);
+    console.log('canDeleteStory for', story.name, ':', result);
+    return result;
+  }
+
+  /**
+   * Delete a story that only has a start node
+   */
+  deleteStory(story: StoryRecord, event: Event): void {
+    event.stopPropagation(); // Prevent selecting the story
+    
+    if (!this.canDeleteStory(story)) {
+      return;
+    }
+
+    if (!confirm(`Delete story "${story.name || 'Untitled'}"? This cannot be undone.`)) {
+      return;
+    }
+
+    const success = this.storyService.deleteStory(story.id);
+    if (success) {
+      console.log('Story deleted successfully:', story.id);
+    }
+  }
+
+  /**
+   * Delete the currently selected story (only works when story has only start node)
+   */
+  deleteCurrentStory(): void {
+    const story = this.storyService.currentStory();
+    if (!story?.id || !this.canDeleteCurrentStory()) {
+      return;
+    }
+
+    if (!confirm(`Delete story "${story.name || 'Untitled'}"? This cannot be undone.`)) {
+      return;
+    }
+
+    const success = this.storyService.deleteStory(story.id);
+    if (success) {
+      console.log('Story deleted successfully:', story.id);
+      // Clear shared story service and go back to story list
+      this.sharedStoryService.clearStory();
+    }
   }
 
   navigateToEventNode(event: StoryEventRecord): void {

@@ -170,6 +170,17 @@ export class GamemasterStoryService {
   );
 
   /**
+   * Check if a story has only a start node (no other nodes)
+   * This allows the story to be deleted completely.
+   */
+  hasOnlyStartNode(storyId: string): boolean {
+    const nodes = this.storage.getNodesByStoryId(storyId);
+    console.log('hasOnlyStartNode check for', storyId, '- nodes:', nodes.length, nodes);
+    // A story can be deleted if it has exactly one node (the start node)
+    return nodes.length === 1;
+  }
+
+  /**
    * Get count of choices pointing TO a specific node (incoming connections)
    */
   getIncomingChoiceCount(nodeKey: string): number {
@@ -388,6 +399,36 @@ export class GamemasterStoryService {
       return null;
     } finally {
       this._loading.set(false);
+    }
+  }
+
+  /**
+   * Delete a story entirely. Can only be done when the story has only a start node.
+   * @returns true if deletion was successful, false otherwise
+   */
+  deleteStory(storyId: string): boolean {
+    // Guard: only allow deletion if story has only a start node
+    if (!this.hasOnlyStartNode(storyId)) {
+      console.warn('Cannot delete story: has more than just a start node');
+      return false;
+    }
+
+    try {
+      this.storage.deleteStory(storyId);
+      this._stories.update(list => list.filter(s => s.id !== storyId));
+      
+      // Clear current story if it was the one deleted
+      if (this._currentStory()?.id === storyId) {
+        this._currentStory.set(null);
+        this._nodes.set([]);
+        this._choices.set([]);
+        this._events.set([]);
+      }
+      
+      return true;
+    } catch (e) {
+      console.error('Failed to delete story:', e);
+      return false;
     }
   }
 

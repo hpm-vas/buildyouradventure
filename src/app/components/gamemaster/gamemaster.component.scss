@@ -106,6 +106,7 @@
   }
 
   .story-card {
+    position: relative;
     background: #1a1a2e;
     border: 1px solid #333;
     border-radius: 8px;
@@ -113,6 +114,39 @@
     cursor: pointer;
     transition: all 0.2s;
     animation: fadeIn 0.3s ease-out;
+
+    .btn-delete-story {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      width: 1.5rem;
+      height: 1.5rem;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: rgba(233, 69, 96, 0.2);
+      color: #e94560;
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.2s;
+
+      &:hover {
+        background: #e94560;
+        color: white;
+      }
+
+      &:focus {
+        opacity: 1;
+        outline: 2px solid #e94560;
+        outline-offset: 2px;
+      }
+    }
+
+    &:hover .btn-delete-story {
+      opacity: 1;
+    }
 
     &:hover {
       border-color: #e94560;
@@ -472,6 +506,65 @@
     display: flex;
     align-items: center;
     gap: 1rem;
+  }
+
+  .delete-story-wrapper {
+    position: relative;
+    display: inline-block;
+
+    .btn-delete-story-header {
+      padding: 0.5rem 1rem;
+      background: transparent;
+      border: 1px solid #e94560;
+      border-radius: 6px;
+      color: #e94560;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: #e94560;
+        color: #fff;
+      }
+
+      &:disabled {
+        border-color: #555;
+        color: #666;
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+    }
+
+    .delete-tooltip {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-top: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: #333;
+      color: #ccc;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      border-radius: 4px;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+      &::before {
+        content: '';
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-bottom-color: #333;
+      }
+    }
+
+    &.disabled:hover .delete-tooltip {
+      display: block;
+    }
   }
 
   .btn-back {

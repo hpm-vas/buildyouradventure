@@ -133,9 +133,6 @@ type SortOption = 'newest' | 'oldest' | 'alphabetical';
                 @if (story.description) {
                   <p class="story-description">{{ story.description }}</p>
                 }
-                @if (!story.isPublished && isGamemaster()) {
-                  <span class="badge draft">Draft</span>
-                }
               </div>
             </article>
           }

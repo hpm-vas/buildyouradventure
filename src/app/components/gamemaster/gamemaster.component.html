@@ -94,24 +94,34 @@
               class="story-card"
               role="listitem"
               tabindex="0"
-              [attr.aria-label]="'Edit story: ' + (story.name || 'Untitled') + (story.description ? '. ' + story.description : '') + (story.is_published ? '. Published' : '. Draft')"
+              [attr.aria-label]="'Edit story: ' + (story.name || 'Untitled') + (story.description ? '. ' + story.description : '') + (story.is_published ? '. Published' : '')"
               [class.focused]="storyFocusedIndex() === i"
               (click)="selectStory(story)"
               (keydown.enter)="selectStory(story)"
               (keydown.space)="selectStory(story); $event.preventDefault()"
               (focus)="storyFocusedIndex.set(i)"
             >
+              @if (canDeleteStory(story)) {
+                <button 
+                  class="btn-delete-story"
+                  title="Delete story (only start node exists)"
+                  aria-label="Delete story"
+                  (click)="deleteStory(story, $event)"
+                  (keydown.enter)="deleteStory(story, $event); $event.stopPropagation()"
+                  (keydown.space)="deleteStory(story, $event); $event.stopPropagation()"
+                >
+                  ×
+                </button>
+              }
               <h3 [class.untitled]="!story.name">{{ story.name || 'Untitled Story' }}</h3>
               @if (story.description) {
                 <p>{{ story.description }}</p>
               }
-              <div class="story-meta">
-                @if (story.is_published) {
+              @if (story.is_published) {
+                <div class="story-meta">
                   <span class="badge published">Published</span>
-                } @else {
-                  <span class="badge draft">Draft</span>
-                }
-              </div>
+                </div>
+              }
             </div>
           }
         </div>
@@ -248,6 +258,19 @@ You stand at the edge of an ancient forest. The trees loom tall and twisted, the
     <header class="admin-header">
       <div class="header-left">
         <h2>{{ storyService.currentStory()?.name }}</h2>
+        <div class="delete-story-wrapper" [class.disabled]="!canDeleteCurrentStory()">
+          <button 
+            class="btn-delete-story-header"
+            [disabled]="!canDeleteCurrentStory()"
+            (click)="deleteCurrentStory()"
+            [attr.aria-label]="canDeleteCurrentStory() ? 'Delete story' : 'Delete story (only available when story has only the start node)'"
+          >
+            🗑️ Delete Story
+          </button>
+          @if (!canDeleteCurrentStory()) {
+            <span class="delete-tooltip">Only available when story has only the start node</span>
+          }
+        </div>
       </div>
       <div class="header-stats">
         <span class="stat">

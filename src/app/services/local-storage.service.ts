@@ -49,6 +49,8 @@ export interface StoredChoice {
   nodeId: string;
   text: string;
   nextNode: string;
+  type?: string;  // 'button' | 'freetext'
+  placeholder?: string;
   created: string;
 }
 

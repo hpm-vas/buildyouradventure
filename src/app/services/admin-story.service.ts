@@ -65,6 +65,8 @@ export interface ChoiceRecord {
   node_id: string;
   text: string;
   next_node: string;
+  type?: 'button' | 'freetext';
+  placeholder?: string;
   created: string;
 }
 
@@ -99,6 +101,8 @@ export interface ChoiceFormData {
   node_id: string;
   text: string;
   next_node: string;
+  type?: 'button' | 'freetext';
+  placeholder?: string;
 }
 
 /**
@@ -232,6 +236,8 @@ export class AdminStoryService {
       node_id: c.nodeId,
       text: c.text,
       next_node: c.nextNode,
+      type: (c.type as 'button' | 'freetext') || 'button',
+      placeholder: c.placeholder,
       created: c.created
     };
   }
@@ -656,7 +662,9 @@ export class AdminStoryService {
       const stored = this.storage.createChoice({
         nodeId: data.node_id,
         text: data.text,
-        nextNode: data.next_node
+        nextNode: data.next_node,
+        type: data.type,
+        placeholder: data.placeholder
       });
 
       const choice = this.toChoiceRecord(stored);
@@ -693,6 +701,8 @@ export class AdminStoryService {
       if (data.node_id !== undefined) updates.nodeId = data.node_id;
       if (data.text !== undefined) updates.text = data.text;
       if (data.next_node !== undefined) updates.nextNode = data.next_node;
+      if (data.type !== undefined) updates.type = data.type;
+      if (data.placeholder !== undefined) updates.placeholder = data.placeholder;
 
       const stored = this.storage.updateChoice(id, updates);
       if (!stored) {

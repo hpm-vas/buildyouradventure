@@ -7,6 +7,8 @@ interface EditableChoice {
   id?: string;
   text: string;
   next_node: string;
+  type?: 'button' | 'freetext';
+  placeholder?: string;
   isNew?: boolean;
   useCustomTarget?: boolean; // When true, shows text input instead of dropdown
 }
@@ -118,11 +120,20 @@ type EditorMode = 'create' | 'edit' | 'start';
 
           @for (choice of editableChoices(); track choice.id ?? $index) {
             <div class="choice-row">
+              <select
+                [(ngModel)]="choice.type"
+                [name]="'choiceType' + $index"
+                class="choice-type-select"
+                title="Choice type"
+              >
+                <option value="button">Button</option>
+                <option value="freetext">Freetext</option>
+              </select>
               <input 
                 type="text"
                 [(ngModel)]="choice.text"
                 [name]="'choiceText' + $index"
-                placeholder="Choice text..."
+                [placeholder]="choice.type === 'freetext' ? 'Label for freetext...' : 'Choice text...'"
                 class="choice-text"
               />
               <div class="choice-target-wrapper">
@@ -169,6 +180,17 @@ type EditorMode = 'create' | 'edit' | 'start';
                 🗑️
               </button>
             </div>
+            @if (choice.type === 'freetext') {
+              <div class="choice-placeholder-row">
+                <input 
+                  type="text"
+                  [(ngModel)]="choice.placeholder"
+                  [name]="'choicePlaceholder' + $index"
+                  placeholder="Placeholder text (optional)..."
+                  class="choice-placeholder"
+                />
+              </div>
+            }
           }
 
           @if (editableChoices().length === 0) {
@@ -401,6 +423,27 @@ type EditorMode = 'create' | 'edit' | 'start';
       gap: 0.5rem;
       margin-bottom: 0.5rem;
 
+      .choice-type-select {
+        width: 100px;
+        padding: 0.5rem;
+        border: 1px solid #333;
+        border-radius: 6px;
+        background: #2a2a3e;
+        color: #eaeaea;
+        font-size: 0.85rem;
+        cursor: pointer;
+
+        &:focus {
+          outline: none;
+          border-color: #e94560;
+        }
+
+        option {
+          background: #2a2a3e;
+          color: #eaeaea;
+        }
+      }
+
       .choice-text {
         flex: 2;
       }
@@ -440,6 +483,31 @@ type EditorMode = 'create' | 'edit' | 'start';
       .btn-small-icon {
         padding: 0.25rem 0.4rem;
         font-size: 0.9rem;
+      }
+    }
+
+    .choice-placeholder-row {
+      margin-left: 106px; // Align with choice text after type selector
+      margin-bottom: 0.75rem;
+      margin-top: -0.25rem;
+
+      .choice-placeholder {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #333;
+        border-radius: 6px;
+        background: #16213e;
+        color: #eaeaea;
+        font-size: 0.9rem;
+
+        &:focus {
+          outline: none;
+          border-color: #e94560;
+        }
+
+        &::placeholder {
+          color: #666;
+        }
       }
     }
 
@@ -674,6 +742,8 @@ export class NodeEditorComponent implements OnInit {
           id: c.id,
           text: c.text,
           next_node: c.next_node,
+          type: c.type || 'button',
+          placeholder: c.placeholder,
           // Use custom input if target doesn't exist or is self-reference
           useCustomTarget: c.next_node === currentNodeKey || 
                           (!!c.next_node && !availableNodeKeys.has(c.next_node))
@@ -696,7 +766,7 @@ export class NodeEditorComponent implements OnInit {
   addChoice(): void {
     this.editableChoices.update(choices => [
       ...choices,
-      { text: '', next_node: '', isNew: true }
+      { text: '', next_node: '', type: 'button', isNew: true }
     ]);
   }
 
@@ -912,10 +982,17 @@ export class NodeEditorComponent implements OnInit {
       if (choice.id && !choice.isNew) {
         // Update existing
         const original = originalChoices.find(c => c.id === choice.id);
-        if (original && (original.text !== choice.text || original.next_node !== choice.next_node)) {
+        if (original && (
+          original.text !== choice.text || 
+          original.next_node !== choice.next_node ||
+          original.type !== choice.type ||
+          original.placeholder !== choice.placeholder
+        )) {
           await this.storyService.updateChoice(choice.id, {
             text: choice.text,
-            next_node: choice.next_node
+            next_node: choice.next_node,
+            type: choice.type,
+            placeholder: choice.placeholder
           });
         }
       } else {
@@ -923,7 +1000,9 @@ export class NodeEditorComponent implements OnInit {
         await this.storyService.createChoice({
           node_id: nodeId,
           text: choice.text,
-          next_node: choice.next_node
+          next_node: choice.next_node,
+          type: choice.type,
+          placeholder: choice.placeholder
         });
       }
     }

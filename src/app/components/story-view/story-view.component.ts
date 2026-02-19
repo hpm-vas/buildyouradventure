@@ -28,6 +28,9 @@ export class StoryViewComponent implements OnInit {
   
   // Local state for free text (since we need two-way binding)
   freeText = signal('');
+  
+  // State for freetext choice values (keyed by choice ID)
+  private freetextChoiceValues = signal<Record<string, string>>({});
 
   ngOnInit(): void {
     const id = this.storyId();
@@ -43,6 +46,32 @@ export class StoryViewComponent implements OnInit {
 
   selectChoice(choiceId: string): void {
     this.storyService.submitInteraction(choiceId);
+  }
+
+  /** Get the current value for a freetext choice */
+  getFreetextChoiceValue(choiceId: string): string {
+    return this.freetextChoiceValues()[choiceId] || '';
+  }
+
+  /** Handle freetext choice input change */
+  onFreetextChoiceChange(choiceId: string, text: string): void {
+    this.freetextChoiceValues.update(values => ({
+      ...values,
+      [choiceId]: text
+    }));
+  }
+
+  /** Submit a freetext choice */
+  submitFreetextChoice(choiceId: string): void {
+    const text = this.freetextChoiceValues()[choiceId] || '';
+    // Store the freetext value before submitting
+    this.storyService.setFreeText(text);
+    this.storyService.submitInteraction(choiceId);
+    // Clear the freetext value after submission
+    this.freetextChoiceValues.update(values => {
+      const { [choiceId]: _, ...rest } = values;
+      return rest;
+    });
   }
 
   onCardsSelected(cardIds: string[]): void {

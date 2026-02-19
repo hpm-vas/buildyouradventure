@@ -84,12 +84,30 @@
           @if (storyService.hasChoices() && node.choices.length > 0) {
             <div class="story-choices">
               @for (choice of node.choices; track choice.id) {
-                <button 
-                  class="choice-btn" 
-                  (click)="selectChoice(choice.id)"
-                  [disabled]="storyService.loading() || !canSubmit">
-                  {{ choice.text }}
-                </button>
+                @if (choice.type === 'freetext') {
+                  <div class="choice-freetext">
+                    <app-free-text-input
+                      [value]="getFreetextChoiceValue(choice.id)"
+                      [label]="choice.text"
+                      [placeholder]="choice.placeholder || 'Enter your response...'"
+                      [disabled]="storyService.loading()"
+                      (valueChange)="onFreetextChoiceChange(choice.id, $event)"
+                    />
+                    <button 
+                      class="choice-btn choice-freetext-submit"
+                      (click)="submitFreetextChoice(choice.id)"
+                      [disabled]="storyService.loading() || !getFreetextChoiceValue(choice.id)">
+                      Submit
+                    </button>
+                  </div>
+                } @else {
+                  <button 
+                    class="choice-btn" 
+                    (click)="selectChoice(choice.id)"
+                    [disabled]="storyService.loading() || !canSubmit">
+                    {{ choice.text }}
+                  </button>
+                }
               }
             </div>
           } @else if (!storyService.hasChoices()) {

@@ -79,12 +79,21 @@ export interface StoryNode {
 }
 
 /**
+ * Type of choice - button (default) or freetext input
+ */
+export type ChoiceType = 'button' | 'freetext';
+
+/**
  * A choice leading to another node
  */
 export interface Choice {
   id: string;
   text: string;
   nextNode: string;
+  // Type of choice: 'button' (default) or 'freetext'
+  type?: ChoiceType;
+  // Placeholder text for freetext choices
+  placeholder?: string;
   // Optional per-choice dice configuration (overrides node config)
   diceConfig?: DiceConfig;
 }

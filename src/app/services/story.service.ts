@@ -154,7 +154,9 @@ export class StoryService {
         choices: storedChoices.map(c => ({
           id: c.id,
           text: c.text,
-          nextNode: c.nextNode
+          nextNode: c.nextNode,
+          type: (c.type as 'button' | 'freetext') || 'button',
+          placeholder: c.placeholder
         })),
         cardDeckId: storedNode.cardDeckId || undefined,
         diceConfig: storedNode.diceConfig || undefined,

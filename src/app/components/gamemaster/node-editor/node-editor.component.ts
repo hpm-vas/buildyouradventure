@@ -14,6 +14,7 @@ interface EditableChoice {
   showDiceConfig?: boolean;
   isNew?: boolean;
   useCustomTarget?: boolean; // When true, shows text input instead of dropdown
+  emotionalHint?: string; // Optional hint displayed as prefix (e.g., "Mutig - Choice text")
 }
 
 type EditorMode = 'create' | 'edit' | 'start';
@@ -186,6 +187,15 @@ type EditorMode = 'create' | 'edit' | 'start';
               >
                 🗑️
               </button>
+            </div>
+            <div class="choice-emotional-hint-row">
+              <input 
+                type="text"
+                [(ngModel)]="choice.emotionalHint"
+                [name]="'choiceEmotionalHint' + $index"
+                placeholder="Emotional hint (e.g., Mutig, Vorsichtig)..."
+                class="choice-emotional-hint"
+              />
             </div>
             @if (choice.type === 'freetext') {
               <div class="choice-placeholder-row">
@@ -571,6 +581,33 @@ type EditorMode = 'create' | 'edit' | 'start';
       }
     }
 
+    .choice-emotional-hint-row {
+      margin-left: 106px; // Align with choice text after type selector
+      margin-bottom: 0.75rem;
+      margin-top: -0.25rem;
+
+      .choice-emotional-hint {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #333;
+        border-radius: 6px;
+        background: #16213e;
+        color: #e94560;
+        font-size: 0.9rem;
+        font-style: italic;
+
+        &:focus {
+          outline: none;
+          border-color: #e94560;
+        }
+
+        &::placeholder {
+          color: #666;
+          font-style: normal;
+        }
+      }
+    }
+
     .choice-dice-config {
       margin-left: 106px;
       margin-bottom: 0.75rem;
@@ -891,6 +928,7 @@ export class NodeEditorComponent implements OnInit {
           placeholder: c.placeholder,
           diceConfig: c.dice_config,
           showDiceConfig: !!c.dice_config,
+          emotionalHint: c.emotional_hint,
           // Use custom input if target doesn't exist or is self-reference
           useCustomTarget: c.next_node === currentNodeKey || 
                           (!!c.next_node && !availableNodeKeys.has(c.next_node))
@@ -1051,6 +1089,7 @@ export class NodeEditorComponent implements OnInit {
           original.next_node !== choice.next_node ||
           original.type !== choice.type ||
           original.placeholder !== choice.placeholder ||
+          original.emotional_hint !== choice.emotionalHint ||
           diceConfigChanged
         )) {
           await this.storyService.updateChoice(choice.id, {
@@ -1058,6 +1097,7 @@ export class NodeEditorComponent implements OnInit {
             next_node: choice.next_node,
             type: choice.type,
             placeholder: choice.placeholder,
+            emotional_hint: choice.emotionalHint,
             dice_config: diceConfig
           });
         }
@@ -1069,6 +1109,7 @@ export class NodeEditorComponent implements OnInit {
           next_node: choice.next_node,
           type: choice.type,
           placeholder: choice.placeholder,
+          emotional_hint: choice.emotionalHint,
           dice_config: diceConfig
         });
       }

@@ -96,6 +96,8 @@ export interface Choice {
   placeholder?: string;
   // Optional per-choice dice configuration (overrides node config)
   diceConfig?: DiceConfig;
+  // Optional emotional hint displayed as prefix (e.g., "Mutig" -> "Mutig - Choice text")
+  emotionalHint?: string;
 }
 
 /**

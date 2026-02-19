@@ -167,7 +167,8 @@ export class StoryService {
           nextNode: c.nextNode,
           type: (c.type as 'button' | 'freetext') || 'button',
           placeholder: c.placeholder,
-          diceConfig: c.diceConfig
+          diceConfig: c.diceConfig,
+          emotionalHint: c.emotionalHint
         })),
         cardDeckId: storedNode.cardDeckId || undefined,
         diceConfig: storedNode.diceConfig || undefined,

@@ -52,6 +52,7 @@ export interface StoredChoice {
   type?: string;  // 'button' | 'freetext'
   placeholder?: string;
   diceConfig?: DiceConfig;
+  emotionalHint?: string;
   created: string;
 }
 

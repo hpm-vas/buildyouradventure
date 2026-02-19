@@ -68,6 +68,7 @@ export interface ChoiceRecord {
   type?: 'button' | 'freetext';
   placeholder?: string;
   dice_config?: DiceConfig;
+  emotional_hint?: string;
   created: string;
 }
 
@@ -105,6 +106,7 @@ export interface ChoiceFormData {
   type?: 'button' | 'freetext';
   placeholder?: string;
   dice_config?: DiceConfig;
+  emotional_hint?: string;
 }
 
 /**
@@ -241,6 +243,7 @@ export class GamemasterStoryService {
       type: (c.type as 'button' | 'freetext') || 'button',
       placeholder: c.placeholder,
       dice_config: c.diceConfig,
+      emotional_hint: c.emotionalHint,
       created: c.created
     };
   }
@@ -668,6 +671,7 @@ export class GamemasterStoryService {
         nextNode: data.next_node,
         type: data.type,
         placeholder: data.placeholder,
+        emotionalHint: data.emotional_hint,
         diceConfig: data.dice_config
       });
 
@@ -707,6 +711,7 @@ export class GamemasterStoryService {
       if (data.next_node !== undefined) updates.nextNode = data.next_node;
       if (data.type !== undefined) updates.type = data.type;
       if (data.placeholder !== undefined) updates.placeholder = data.placeholder;
+      if (data.emotional_hint !== undefined) updates.emotionalHint = data.emotional_hint;
       if (data.dice_config !== undefined) updates.diceConfig = data.dice_config;
 
       const stored = this.storage.updateChoice(id, updates);

@@ -144,6 +144,12 @@
     flex-shrink: 0;
   }
 
+  .emotional-hint {
+    font-weight: 600;
+    color: var(--accent-color, #e94560);
+    font-style: italic;
+  }
+
   // Pending dice roll state
   .pending-dice-choice {
     display: flex;

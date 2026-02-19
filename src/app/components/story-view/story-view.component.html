@@ -121,6 +121,9 @@
                       @if (choice.diceConfig) {
                         <span class="dice-indicator">🎲</span>
                       }
+                      @if (choice.emotionalHint) {
+                        <span class="emotional-hint">{{ choice.emotionalHint }}</span> - 
+                      }
                       {{ choice.text }}
                     </button>
                   }

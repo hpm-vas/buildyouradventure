@@ -116,7 +116,7 @@ export interface StoryNodeWithChoices {
 }
 
 /**
- * Service for managing story content in the admin panel
+ * Service for managing story content in the gamemaster panel
  * Uses LocalStorage for persistence (no backend required)
  */
 
@@ -126,7 +126,7 @@ export const PLACEHOLDER_TEXT = '<!-- Placeholder node - add content -->';
 @Injectable({
   providedIn: 'root'
 })
-export class AdminStoryService {
+export class GamemasterStoryService {
   private readonly storage = inject(LocalStorageService);
 
   // Current story context
@@ -306,7 +306,7 @@ export class AdminStoryService {
       this._stories.set(stories);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load stories';
-      console.error('AdminStoryService.loadStories error:', e);
+      console.error('GamemasterStoryService.loadStories error:', e)
       this._error.set(message);
     } finally {
       this._loading.set(false);
@@ -317,7 +317,7 @@ export class AdminStoryService {
    * Select a story to work with
    */
   async selectStory(storyId: string): Promise<void> {
-    console.log('AdminStoryService.selectStory called with id:', storyId);
+    console.log('GamemasterStoryService.selectStory called with id:', storyId);
     try {
       const stored = this.storage.getStoryById(storyId);
       if (!stored) {
@@ -330,7 +330,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to select story';
       this._error.set(message);
-      console.error('AdminStoryService.selectStory error:', e);
+      console.error('GamemasterStoryService.selectStory error:', e);
     }
   }
 
@@ -381,7 +381,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to create story';
       this._error.set(message);
-      console.error('AdminStoryService.createStoryWithStartNode error:', e);
+      console.error('GamemasterStoryService.createStoryWithStartNode error:', e);
       return null;
     } finally {
       this._loading.set(false);
@@ -408,7 +408,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to create story';
       this._error.set(message);
-      console.error('AdminStoryService.createStory error:', e);
+      console.error('GamemasterStoryService.createStory error:', e);
       return null;
     } finally {
       this._loading.set(false);
@@ -469,7 +469,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load story data';
       this._error.set(message);
-      console.error('AdminStoryService.loadAll error:', e);
+      console.error('GamemasterStoryService.loadAll error:', e);
     } finally {
       this._loading.set(false);
     }
@@ -529,7 +529,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to create node';
       this._error.set(message);
-      console.error('AdminStoryService.createNode error:', e);
+      console.error('GamemasterStoryService.createNode error:', e);
       return null;
     } finally {
       this._loading.set(false);
@@ -583,7 +583,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to update node';
       this._error.set(message);
-      console.error('AdminStoryService.updateNode error:', e);
+      console.error('GamemasterStoryService.updateNode error:', e);
       return null;
     } finally {
       this._loading.set(false);
@@ -607,7 +607,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to delete node';
       this._error.set(message);
-      console.error('AdminStoryService.deleteNode error:', e);
+      console.error('GamemasterStoryService.deleteNode error:', e);
       return false;
     } finally {
       this._loading.set(false);
@@ -636,7 +636,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to set start node';
       this._error.set(message);
-      console.error('AdminStoryService.setStartNode error:', e);
+      console.error('GamemasterStoryService.setStartNode error:', e);
       return false;
     } finally {
       this._loading.set(false);
@@ -677,7 +677,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to create choice';
       this._error.set(message);
-      console.error('AdminStoryService.createChoice error:', e);
+      console.error('GamemasterStoryService.createChoice error:', e);
       return null;
     } finally {
       this._loading.set(false);
@@ -722,7 +722,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to update choice';
       this._error.set(message);
-      console.error('AdminStoryService.updateChoice error:', e);
+      console.error('GamemasterStoryService.updateChoice error:', e);
       return null;
     } finally {
       this._loading.set(false);
@@ -745,7 +745,7 @@ export class AdminStoryService {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to delete choice';
       this._error.set(message);
-      console.error('AdminStoryService.deleteChoice error:', e);
+      console.error('GamemasterStoryService.deleteChoice error:', e);
       return false;
     } finally {
       this._loading.set(false);

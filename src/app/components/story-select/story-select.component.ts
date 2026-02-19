@@ -88,7 +88,7 @@ type SortOption = 'newest' | 'oldest' | 'alphabetical';
       } @else if (stories().length === 0) {
         <div class="empty">
           <p>No stories available.</p>
-          @if (isAdmin()) {
+          @if (isGamemaster()) {
             <p>Create your first story to get started!</p>
           }
         </div>
@@ -131,7 +131,7 @@ type SortOption = 'newest' | 'oldest' | 'alphabetical';
                 @if (story.description) {
                   <p class="story-description">{{ story.description }}</p>
                 }
-                @if (!story.isPublished && isAdmin()) {
+                @if (!story.isPublished && isGamemaster()) {
                   <span class="badge draft">Draft</span>
                 }
               </div>
@@ -492,7 +492,7 @@ export class StorySelectComponent implements OnInit {
   readonly sortOption = signal<SortOption>('newest');
   readonly focusedIndex = signal(0);
 
-  readonly isAdmin = this.auth.isAdmin;
+  readonly isGamemaster = this.auth.isGamemaster;
 
   // Filtered and sorted stories
   readonly filteredStories = computed(() => {

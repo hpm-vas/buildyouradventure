@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, input, output, effect, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { marked } from 'marked';
-import { AdminStoryService, StoryNodeRecord, ChoiceRecord, StoryNodeFormData } from '../../../services/admin-story.service';
+import { GamemasterStoryService, StoryNodeRecord, ChoiceRecord, StoryNodeFormData } from '../../../services/gamemaster-story.service';
 import { DiceConfig, DiceType } from '../../../models/story.model';
 
 interface EditableChoice {
@@ -773,7 +773,7 @@ type EditorMode = 'create' | 'edit' | 'start';
   `]
 })
 export class NodeEditorComponent implements OnInit {
-  readonly storyService = inject(AdminStoryService);
+  readonly storyService = inject(GamemasterStoryService);
 
   // Inputs
   readonly nodeId = input<string | null>(null);

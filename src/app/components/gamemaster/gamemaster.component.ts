@@ -2,7 +2,7 @@ import { Component, signal, inject, OnInit, computed, viewChild, ViewChildren, Q
 import { marked } from 'marked';
 import { FormsModule } from '@angular/forms';
 import { CommonModule, DatePipe } from '@angular/common';
-import { AdminStoryService, StoryNodeRecord, ChoiceRecord, StoryRecord, StoryEventRecord } from '../../services/admin-story.service';
+import { GamemasterStoryService, StoryNodeRecord, ChoiceRecord, StoryRecord, StoryEventRecord } from '../../services/gamemaster-story.service';
 import { AuthService } from '../../services/auth.service';
 import { NodeEditorComponent } from './node-editor/node-editor.component';
 import { StoryGraphComponent } from './story-graph/story-graph.component';
@@ -24,14 +24,14 @@ interface WizardStartNode {
 }
 
 @Component({
-  selector: 'app-admin',
+  selector: 'app-gamemaster',
   standalone: true,
   imports: [FormsModule, CommonModule, NodeEditorComponent, StoryGraphComponent],
-  templateUrl: './admin.component.html',
-  styleUrl: './admin.component.scss'
+  templateUrl: './gamemaster.component.html',
+  styleUrl: './gamemaster.component.scss'
 })
-export class AdminComponent implements OnInit {
-  readonly storyService = inject(AdminStoryService);
+export class GamemasterComponent implements OnInit {
+  readonly storyService = inject(GamemasterStoryService);
   readonly authService = inject(AuthService);
 
   readonly graphComponent = viewChild(StoryGraphComponent);

@@ -2,7 +2,7 @@ import { Component, inject, signal, output, effect, ElementRef, viewChild, After
 import cytoscape, { Core, NodeSingular } from 'cytoscape';
 // @ts-ignore - cytoscape-dagre doesn't have types
 import dagre from 'cytoscape-dagre';
-import { AdminStoryService, StoryNodeRecord, PLACEHOLDER_TEXT } from '../../../services/admin-story.service';
+import { GamemasterStoryService, StoryNodeRecord, PLACEHOLDER_TEXT } from '../../../services/gamemaster-story.service';
 
 // Register dagre layout
 cytoscape.use(dagre);
@@ -116,7 +116,7 @@ cytoscape.use(dagre);
   `]
 })
 export class StoryGraphComponent implements AfterViewInit, OnDestroy {
-  private readonly storyService = inject(AdminStoryService);
+  private readonly storyService = inject(GamemasterStoryService);
   
   readonly graphContainer = viewChild.required<ElementRef<HTMLDivElement>>('graphContainer');
   

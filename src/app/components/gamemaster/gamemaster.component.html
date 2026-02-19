@@ -1,10 +1,10 @@
-<div class="admin-container">
+<div class="gamemaster-container">
   @if (!storyService.currentStory()) {
     <!-- Story Selection View -->
     <div class="story-selection" [attr.aria-busy]="storyService.loading()">
       <header class="story-selection-header">
         <div class="header-title">
-          <h2 id="admin-story-heading">Select a Story to Edit</h2>
+          <h2 id="gamemaster-story-heading">Select a Story to Edit</h2>
           @if (!storyService.loading() && storyService.stories().length > 0) {
             <span class="story-count" aria-live="polite">
               {{ filteredStories().length }}
@@ -19,9 +19,9 @@
       @if (!storyService.loading() && storyService.stories().length > 0) {
         <div class="header-controls">
           <div class="search-box">
-            <label for="admin-story-search" class="visually-hidden">Search stories</label>
+            <label for="gamemaster-story-search" class="visually-hidden">Search stories</label>
             <input 
-              id="admin-story-search"
+              id="gamemaster-story-search"
               type="search"
               [ngModel]="storySearchQuery()"
               (ngModelChange)="storySearchQuery.set($event)"
@@ -30,9 +30,9 @@
           </div>
           
           <div class="sort-controls">
-            <label for="admin-story-sort" class="visually-hidden">Sort by</label>
+            <label for="gamemaster-story-sort" class="visually-hidden">Sort by</label>
             <select 
-              id="admin-story-sort"
+              id="gamemaster-story-sort"
               [ngModel]="storySortOption()"
               (ngModelChange)="storySortOption.set($event)"
             >
@@ -85,7 +85,7 @@
         <div 
           class="story-grid" 
           role="list"
-          aria-labelledby="admin-story-heading"
+          aria-labelledby="gamemaster-story-heading"
           (keydown)="onStoryGridKeydown($event)"
         >
           @for (story of filteredStories(); track story.id; let i = $index) {

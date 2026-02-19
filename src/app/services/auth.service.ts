@@ -34,7 +34,7 @@ export class AuthService {
   readonly isAuthenticated = signal(true).asReadonly();
 
   readonly role = computed(() => this._user()?.role ?? 'gamemaster');
-  readonly isAdmin = computed(() => true);
+  readonly isGamemaster = computed(() => true);
 
   constructor() {
     console.log('AuthService: Running in local gamemaster mode');

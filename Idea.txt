@@ -49,12 +49,44 @@ The Game Master (GM)
 • Multi-Story Manager: Creates and manages multiple distinct stories; ensures each story’s content and interaction logs are kept separate.  
 • All GM-authored Story-Parts, interaction configurations, and Emotion Card deck definitions must be persisted to durable storage and restored after program restart.
 
-GM Story Management Workflow  
-• Story Selection Page: Upon login, the GM is directed to a dedicated story management page (/admin/stories) listing all existing stories.  
-• Create New Story: GM can create a new story by providing a name and optional description. Upon creation, the system automatically generates an empty start node (node_key: 'start') for immediate authoring.  
-• Story Selection: GM selects a story to work on; the admin interface then displays only that story's nodes and choices.  
-• Single-Story Session: Once a story is selected, the GM works exclusively on that story. To switch to a different story, the GM must logout and login again.  
-• Start Node Convention: Each story's entry point is determined by the node with node_key === 'start'. This node is auto-created and its key cannot be changed.  
+GM Story Management Workflow
+
+• Login/Startup: Upon authentication, the GM is directed to the Story Selection page.
+
+• Story Selection Page (/admin/stories):
+  - Displays all existing stories as visual tiles showing story name, description, and status.
+  - Provides a "Create New Story" option prominently displayed alongside existing story tiles.
+
+• Selecting an Existing Story:
+  - Upon selection, the GM enters the Story Dashboard for that story.
+  - A persistent header displays the currently selected story name and provides a "Leave Story" button to return to the Story Selection page.
+  - The main view shows the "Story So Far" — a chronological list of all story nodes with:
+    * The GM's narrative text for each node
+    * Player selections/responses (choices made, cards selected, text entered, dice results)
+    * The list scrolls with the most recent/current node at the bottom
+  - The bottom element shows the current story state:
+    * If awaiting player input: displays the last text node with available options (no player response yet)
+    * If player has responded: displays the last text node with the recorded player selection
+  - Navigation to "Create Node" page allows the GM to author new story nodes and expand the narrative.
+
+• Creating a New Story:
+  - GM provides a story name and optional description.
+  - Upon creation, the GM is immediately redirected to the "Create Node" page.
+  - A mandatory "Create Start Node" form is displayed — this is a special node creation interface specifically for the story's entry point.
+  - The start node (node_key: 'start') must be authored and saved before the story is persisted.
+  - Until the start node is saved:
+    * The story does not appear in the Story Selection page
+    * No other nodes can be created
+  - Once the start node is saved:
+    * The new story is fully persisted and becomes visible in the Story Selection page
+    * The interface transitions to the standard "Create Node" page for adding subsequent nodes
+    * The Story Dashboard becomes accessible with the start node as the first entry in "Story So Far"
+
+• Start Node Convention:
+  - Every story must have exactly one start node (node_key: 'start').
+  - The start node is the mandatory entry point for all players.
+  - The start node key cannot be modified or deleted.
+
 • Node Key Scoping: Node keys are unique only within a story, allowing the same key names (e.g., 'intro', 'ending') to be reused across different stories.
 
 The Player  

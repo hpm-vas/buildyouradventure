@@ -98,6 +98,10 @@ export interface StoryNodeWithChoices {
  * Service for managing story content in the admin panel
  * Uses LocalStorage for persistence (no backend required)
  */
+
+/** Placeholder text used for dummy/incomplete nodes */
+export const PLACEHOLDER_TEXT = '<!-- Placeholder node - add content -->';
+
 @Injectable({
   providedIn: 'root'
 })
@@ -137,8 +141,15 @@ export class AdminStoryService {
 
   /** Get count of dummy/placeholder nodes */
   readonly dummyNodeCount = computed(() =>
-    this._nodes().filter(n => n.pending || !n.text).length
+    this._nodes().filter(n => n.pending || !n.text || this.isPlaceholderText(n.text)).length
   );
+
+  /**
+   * Check if text is a placeholder/dummy value
+   */
+  isPlaceholderText(text: string): boolean {
+    return text === PLACEHOLDER_TEXT || text === '<!-- Add your story content here -->';
+  }
 
   // =====================
   // STORY OPERATIONS
@@ -237,34 +248,73 @@ export class AdminStoryService {
   }
 
   /**
-   * Create a new story with auto-generated start node
+   * Create a new story with its mandatory start node atomically.
+   * A story cannot exist without a start node - this method ensures both are created together.
    */
-  async createStory(name: string, description?: string): Promise<StoryRecord | null> {
+  async createStoryWithStartNode(
+    name: string,
+    description: string,
+    startNodeData: { title: string; text: string }
+  ): Promise<StoryRecord | null> {
     this._loading.set(true);
     this._error.set(null);
 
-    console.log('createStory called with name:', name, 'description:', description);
+    console.log('createStoryWithStartNode called with name:', name);
 
     try {
+      // Validate start node content
+      if (!startNodeData.text.trim() || this.isPlaceholderText(startNodeData.text)) {
+        throw new Error('Start node content is required');
+      }
+
       // Create the story
-      const stored = this.storage.createStory(name, description || '');
-      const story = this.toStoryRecord(stored);
+      const storedStory = this.storage.createStory(name, description);
+      const story = this.toStoryRecord(storedStory);
 
       console.log('Created story:', story);
 
-      // Create default start node
+      // Create complete (non-pending) start node
       this.storage.createNode({
         storyId: story.id,
         nodeKey: 'start',
-        title: 'Beginning',
-        text: '<!-- Add your story content here -->',
+        title: startNodeData.title || 'Beginning',
+        text: startNodeData.text,
         media: null,
-        pending: true,
+        pending: false,  // Not pending - has real content
         isStart: true,
         interactionType: null,
         diceConfig: null,
         cardDeckId: null
       });
+
+      console.log('Created start node for story:', story.id);
+
+      this._stories.update(list => [story, ...list]);
+      this._error.set(null);
+      return story;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to create story';
+      this._error.set(message);
+      console.error('AdminStoryService.createStoryWithStartNode error:', e);
+      return null;
+    } finally {
+      this._loading.set(false);
+    }
+  }
+
+  /**
+   * @deprecated Use createStoryWithStartNode instead.
+   * Creates a story without a start node - should not be used in the normal flow.
+   */
+  async createStory(name: string, description?: string): Promise<StoryRecord | null> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    console.log('[DEPRECATED] createStory called - use createStoryWithStartNode instead');
+
+    try {
+      const stored = this.storage.createStory(name, description || '');
+      const story = this.toStoryRecord(stored);
 
       this._stories.update(list => [story, ...list]);
       this._error.set(null);
@@ -393,7 +443,7 @@ export class AdminStoryService {
       story_id: storyId,
       node_key: nodeKey,
       title: '',
-      text: '<!-- Placeholder node - add content -->',
+      text: PLACEHOLDER_TEXT,
       pending: true
     });
   }

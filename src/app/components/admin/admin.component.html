@@ -13,7 +13,7 @@
             </span>
           }
         </div>
-        <button class="btn-primary" (click)="openCreateStoryDialog()">+ New Story</button>
+        <button class="btn-primary" (click)="openCreateWizard()">+ New Story</button>
       </header>
 
       @if (!storyService.loading() && storyService.stories().length > 0) {
@@ -74,7 +74,7 @@
       } @else if (storyService.stories().length === 0) {
         <div class="empty-state">
           <p>No stories yet. Create your first story to get started!</p>
-          <button class="btn-primary" (click)="openCreateStoryDialog()">+ Create Story</button>
+          <button class="btn-primary" (click)="openCreateWizard()">+ Create Story</button>
         </div>
       } @else if (filteredStories().length === 0) {
         <div class="empty-state">
@@ -117,39 +117,128 @@
         </div>
       }
 
-      @if (showCreateStoryDialog()) {
-        <div class="dialog-backdrop" (click)="closeCreateStoryDialog()" (keydown.escape)="closeCreateStoryDialog()">
-          <div class="dialog" role="dialog" aria-labelledby="create-story-title" (click)="$event.stopPropagation()">
-            <h3 id="create-story-title">Create New Story</h3>
-            <div class="form-group">
-              <label for="storyName">Story Name</label>
-              <input 
-                type="text" 
-                id="storyName"
-                [ngModel]="newStoryName()"
-                (ngModelChange)="newStoryName.set($event)"
-                placeholder="Enter story name"
-              />
+      @if (wizardStep()) {
+        <div class="dialog-backdrop" (click)="closeCreateWizard()" (keydown.escape)="closeCreateWizard()">
+          <div class="dialog wizard-dialog" role="dialog" aria-labelledby="wizard-title" (click)="$event.stopPropagation()">
+            <!-- Wizard Progress Indicator -->
+            <div class="wizard-progress">
+              <div class="wizard-step" [class.active]="wizardStep() === 'meta'" [class.completed]="wizardStep() === 'startNode'">
+                <span class="step-number">1</span>
+                <span class="step-label">Story Info</span>
+              </div>
+              <div class="wizard-step-connector" [class.active]="wizardStep() === 'startNode'"></div>
+              <div class="wizard-step" [class.active]="wizardStep() === 'startNode'">
+                <span class="step-number">2</span>
+                <span class="step-label">Start Node</span>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="storyDesc">Description (optional)</label>
-              <textarea 
-                id="storyDesc"
-                [ngModel]="newStoryDescription()"
-                (ngModelChange)="newStoryDescription.set($event)"
-                rows="3"
-                placeholder="Brief description of your story"
-              ></textarea>
-            </div>
-            @if (storyService.error()) {
-              <div class="error-message" role="alert">{{ storyService.error() }}</div>
+
+            @if (wizardStep() === 'meta') {
+              <!-- Step 1: Story Metadata -->
+              <h3 id="wizard-title">Create New Story</h3>
+              <p class="wizard-subtitle">Every story needs a name and a beginning.</p>
+              
+              <div class="form-group">
+                <label for="storyName">Story Name *</label>
+                <input 
+                  type="text" 
+                  id="storyName"
+                  [ngModel]="wizardStoryMeta().name"
+                  (ngModelChange)="updateWizardMeta('name', $event)"
+                  placeholder="Enter story name"
+                  autofocus
+                />
+              </div>
+              <div class="form-group">
+                <label for="storyDesc">Description (optional)</label>
+                <textarea 
+                  id="storyDesc"
+                  [ngModel]="wizardStoryMeta().description"
+                  (ngModelChange)="updateWizardMeta('description', $event)"
+                  rows="3"
+                  placeholder="Brief description of your story"
+                ></textarea>
+              </div>
+              
+              @if (storyService.error()) {
+                <div class="error-message" role="alert">{{ storyService.error() }}</div>
+              }
+              
+              <div class="dialog-actions">
+                <button type="button" class="btn-secondary" (click)="closeCreateWizard()">Cancel</button>
+                <button 
+                  type="button" 
+                  class="btn-primary" 
+                  (click)="wizardGoToStartNode()" 
+                  [disabled]="!canProceedToStartNode()"
+                >
+                  Next: Create Start Node →
+                </button>
+              </div>
+            } @else if (wizardStep() === 'startNode') {
+              <!-- Step 2: Start Node Content -->
+              <h3 id="wizard-title">Create Start Node</h3>
+              <p class="wizard-subtitle">Write the opening of your story. This is what players will see first.</p>
+              
+              <div class="form-group">
+                <label for="startNodeTitle">Title (optional)</label>
+                <input 
+                  type="text" 
+                  id="startNodeTitle"
+                  [ngModel]="wizardStartNode().title"
+                  (ngModelChange)="updateWizardStartNode('title', $event)"
+                  placeholder="e.g., The Beginning, Prologue"
+                />
+              </div>
+              
+              <div class="form-group content-group">
+                <div class="content-header">
+                  <label for="startNodeContent">Content (Markdown) *</label>
+                  <button 
+                    type="button" 
+                    class="btn-toggle"
+                    (click)="wizardTogglePreview()"
+                  >
+                    {{ wizardShowPreview() ? '✏️ Edit' : '👁️ Preview' }}
+                  </button>
+                </div>
+                
+                @if (wizardShowPreview()) {
+                  <div class="markdown-preview" [innerHTML]="wizardRenderedContent()"></div>
+                } @else {
+                  <textarea 
+                    id="startNodeContent"
+                    [ngModel]="wizardStartNode().text"
+                    (ngModelChange)="updateWizardStartNode('text', $event)"
+                    rows="10"
+                    placeholder="Write the beginning of your adventure in Markdown...
+
+Example:
+# The Dark Forest
+
+You stand at the edge of an ancient forest. The trees loom tall and twisted, their branches blocking out most of the sunlight. A narrow path winds its way into the darkness.
+
+*What do you do?*"
+                  ></textarea>
+                }
+              </div>
+              
+              @if (storyService.error()) {
+                <div class="error-message" role="alert">{{ storyService.error() }}</div>
+              }
+              
+              <div class="dialog-actions">
+                <button type="button" class="btn-secondary" (click)="wizardGoBackToMeta()">← Back</button>
+                <button 
+                  type="button" 
+                  class="btn-primary" 
+                  (click)="createStoryWithStartNode()" 
+                  [disabled]="!canCreateStory() || storyService.loading()"
+                >
+                  {{ storyService.loading() ? 'Creating...' : '✨ Create Story' }}
+                </button>
+              </div>
             }
-            <div class="dialog-actions">
-              <button class="btn-secondary" (click)="closeCreateStoryDialog()">Cancel</button>
-              <button class="btn-primary" (click)="createStory()" [disabled]="!newStoryName().trim() || storyService.loading()">
-                {{ storyService.loading() ? 'Creating...' : 'Create Story' }}
-              </button>
-            </div>
           </div>
         </div>
       }
@@ -178,7 +267,6 @@
     </header>
 
   <div class="admin-content">
-    @if (!requiresStartNode()) {
     <!-- Left Panel: Node List / Graph -->
     <aside class="nodes-panel">
       <div class="panel-header">
@@ -256,29 +344,19 @@
         />
       }
     </aside>
-    }
 
     <!-- Right Panel: Editor -->
-    <main class="editor-panel" [class.full-width]="requiresStartNode()">
+    <main class="editor-panel">
       @if (editorMode() === 'closed') {
         <div class="editor-placeholder">
-          @if (requiresStartNode()) {
-            <div class="start-node-prompt">
-              <span class="prompt-icon">⭐</span>
-              <h3>Create Your Start Node</h3>
-              <p>Every story needs a beginning. Create your first node to start building your adventure.</p>
-              <button class="btn-primary btn-large" (click)="openCreateEditor()">Create Start Node</button>
-            </div>
-          } @else {
-            <p>Select a node to edit or create a new one</p>
-            <button class="btn-primary" (click)="openCreateEditor()">+ Create New Node</button>
-          }
+          <p>Select a node to edit or create a new one</p>
+          <button class="btn-primary" (click)="openCreateEditor()">+ Create New Node</button>
         </div>
       } @else {
         <app-node-editor
           [nodeId]="selectedNodeId()"
           [existingChoices]="selectedNodeChoices()"
-          [forceStartNode]="requiresStartNode()"
+          [forceStartNode]="false"
           (close)="closeEditor()"
           (saved)="onNodeSaved($event)"
         />

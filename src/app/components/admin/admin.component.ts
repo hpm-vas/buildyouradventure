@@ -1,4 +1,5 @@
-import { Component, signal, inject, OnInit, computed, viewChild, effect, ViewChildren, QueryList, ElementRef } from '@angular/core';
+import { Component, signal, inject, OnInit, computed, viewChild, ViewChildren, QueryList, ElementRef } from '@angular/core';
+import { marked } from 'marked';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AdminStoryService, StoryNodeRecord, ChoiceRecord, StoryRecord } from '../../services/admin-story.service';
@@ -9,6 +10,18 @@ import { StoryGraphComponent } from './story-graph/story-graph.component';
 type ViewMode = 'graph' | 'list';
 type EditorMode = 'closed' | 'create' | 'edit';
 type SortOption = 'newest' | 'oldest' | 'alphabetical';
+type WizardStep = 'meta' | 'startNode' | null;
+
+/** Data for the story creation wizard */
+interface WizardStoryMeta {
+  name: string;
+  description: string;
+}
+
+interface WizardStartNode {
+  title: string;
+  text: string;
+}
 
 @Component({
   selector: 'app-admin',
@@ -24,10 +37,11 @@ export class AdminComponent implements OnInit {
   readonly graphComponent = viewChild(StoryGraphComponent);
   @ViewChildren('storyCard') storyCards!: QueryList<ElementRef<HTMLElement>>;
 
-  // Story management
-  readonly showCreateStoryDialog = signal(false);
-  readonly newStoryName = signal('');
-  readonly newStoryDescription = signal('');
+  // Story creation wizard state
+  readonly wizardStep = signal<WizardStep>(null);
+  readonly wizardStoryMeta = signal<WizardStoryMeta>({ name: '', description: '' });
+  readonly wizardStartNode = signal<WizardStartNode>({ title: '', text: '' });
+  readonly wizardShowPreview = signal(false);
 
   // Story selection state (search, sort, keyboard nav)
   readonly storySearchQuery = signal('');
@@ -96,24 +110,35 @@ export class AdminComponent implements OnInit {
 
   readonly stats = computed(() => ({
     total: this.storyService.nodes().length,
-    complete: this.storyService.nodes().filter(n => !n.pending && n.text && n.text !== '<!-- Placeholder node - add content -->').length,
+    complete: this.storyService.nodes().filter(n => !n.pending && n.text && !this.storyService.isPlaceholderText(n.text)).length,
     dummy: this.storyService.dummyNodeCount(),
     hasStart: !!this.storyService.startNode()
   }));
 
-  // When true, only allow creating the start node (only after loading is complete)
-  readonly requiresStartNode = computed(() => 
-    !this.storyService.loading() && !this.stats().hasStart
+  /** Check if wizard can proceed to next step */
+  readonly canProceedToStartNode = computed(() => 
+    this.wizardStoryMeta().name.trim().length > 0
   );
 
+  /** Check if wizard can create the story */
+  readonly canCreateStory = computed(() => {
+    const startNode = this.wizardStartNode();
+    return startNode.text.trim().length > 0 && !this.storyService.isPlaceholderText(startNode.text);
+  });
+
+  /** Preview of rendered markdown content */
+  readonly wizardRenderedContent = computed(() => {
+    const text = this.wizardStartNode().text;
+    if (!text) return '';
+    try {
+      return marked.parse(text) as string;
+    } catch {
+      return text;
+    }
+  });
+
   constructor() {
-    // Auto-open editor when start node is required
-    effect(() => {
-      if (this.requiresStartNode()) {
-        this.editorMode.set('create');
-        this.selectedNodeId.set(null);
-      }
-    });
+    // No auto-effects needed - wizard handles story creation flow
   }
 
   ngOnInit(): void {
@@ -204,25 +229,68 @@ export class AdminComponent implements OnInit {
     this.closeEditor();
   }
 
-  openCreateStoryDialog(): void {
-    this.newStoryName.set('');
-    this.newStoryDescription.set('');
-    this.showCreateStoryDialog.set(true);
+  // =====================
+  // STORY CREATION WIZARD
+  // =====================
+
+  /** Open the story creation wizard */
+  openCreateWizard(): void {
+    this.wizardStoryMeta.set({ name: '', description: '' });
+    this.wizardStartNode.set({ title: '', text: '' });
+    this.wizardShowPreview.set(false);
+    this.wizardStep.set('meta');
   }
 
-  closeCreateStoryDialog(): void {
-    this.showCreateStoryDialog.set(false);
+  /** Close the wizard and reset state */
+  closeCreateWizard(): void {
+    this.wizardStep.set(null);
   }
 
-  async createStory(): Promise<void> {
-    const name = this.newStoryName().trim();
-    const description = this.newStoryDescription().trim();
-    
-    if (!name) return;
+  /** Move from meta step to start node step */
+  wizardGoToStartNode(): void {
+    if (this.canProceedToStartNode()) {
+      this.wizardStep.set('startNode');
+    }
+  }
 
-    const story = await this.storyService.createStory(name, description);
+  /** Go back from start node step to meta step */
+  wizardGoBackToMeta(): void {
+    this.wizardStep.set('meta');
+  }
+
+  /** Toggle markdown preview in wizard */
+  wizardTogglePreview(): void {
+    this.wizardShowPreview.update(v => !v);
+  }
+
+  /** Update wizard story meta fields */
+  updateWizardMeta(field: 'name' | 'description', value: string): void {
+    this.wizardStoryMeta.update(meta => ({ ...meta, [field]: value }));
+  }
+
+  /** Update wizard start node fields */
+  updateWizardStartNode(field: 'title' | 'text', value: string): void {
+    this.wizardStartNode.update(node => ({ ...node, [field]: value }));
+  }
+
+  /** Create story with start node atomically */
+  async createStoryWithStartNode(): Promise<void> {
+    if (!this.canCreateStory()) return;
+
+    const meta = this.wizardStoryMeta();
+    const startNode = this.wizardStartNode();
+
+    const story = await this.storyService.createStoryWithStartNode(
+      meta.name.trim(),
+      meta.description.trim(),
+      {
+        title: startNode.title.trim(),
+        text: startNode.text
+      }
+    );
+
     if (story) {
-      this.closeCreateStoryDialog();
+      this.closeCreateWizard();
       await this.selectStory(story);
     }
   }
@@ -234,7 +302,6 @@ export class AdminComponent implements OnInit {
 
   // Node selection
   selectNode(nodeId: string): void {
-    if (this.requiresStartNode()) return;
     this.selectedNodeId.set(nodeId);
     this.editorMode.set('edit');
     
@@ -246,7 +313,6 @@ export class AdminComponent implements OnInit {
   }
 
   onGraphNodeSelected(nodeId: string): void {
-    if (this.requiresStartNode()) return;
     this.selectedNodeId.set(nodeId);
     this.editorMode.set('edit');
   }
@@ -286,7 +352,7 @@ export class AdminComponent implements OnInit {
   // Helper for node status
   getNodeStatus(node: StoryNodeRecord): 'start' | 'complete' | 'dummy' {
     if (node.is_start) return 'start';
-    if (node.pending || !node.text || node.text === '<!-- Placeholder node - add content -->') return 'dummy';
+    if (node.pending || !node.text || this.storyService.isPlaceholderText(node.text)) return 'dummy';
     return 'complete';
   }
 

@@ -296,6 +296,153 @@
     justify-content: flex-end;
     margin-top: 1.5rem;
   }
+
+  // Wizard-specific styles
+  &.wizard-dialog {
+    max-width: 600px;
+  }
+
+  .wizard-subtitle {
+    color: #888;
+    margin: -1rem 0 1.5rem 0;
+    font-size: 0.9rem;
+  }
+
+  .wizard-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #333;
+  }
+
+  .wizard-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+
+    .step-number {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: #333;
+      color: #888;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+    }
+
+    .step-label {
+      color: #666;
+      font-size: 0.8rem;
+      transition: color 0.3s;
+    }
+
+    &.active {
+      .step-number {
+        background: #e94560;
+        color: white;
+      }
+      .step-label {
+        color: #e94560;
+      }
+    }
+
+    &.completed {
+      .step-number {
+        background: #4caf50;
+        color: white;
+      }
+      .step-label {
+        color: #4caf50;
+      }
+    }
+  }
+
+  .wizard-step-connector {
+    width: 60px;
+    height: 2px;
+    background: #333;
+    margin: 0 0.5rem;
+    margin-bottom: 1.5rem;
+    transition: background 0.3s;
+
+    &.active {
+      background: linear-gradient(90deg, #4caf50, #e94560);
+    }
+  }
+
+  .content-group {
+    .content-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .btn-toggle {
+      padding: 0.25rem 0.75rem;
+      background: #0d0d1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 0.8rem;
+
+      &:hover {
+        border-color: #e94560;
+        color: #e94560;
+      }
+    }
+
+    textarea {
+      min-height: 200px;
+      font-family: 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      resize: vertical;
+    }
+
+    .markdown-preview {
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 1rem;
+      background: #0d0d1a;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #eaeaea;
+      line-height: 1.6;
+
+      h1, h2, h3, h4 {
+        color: #e94560;
+        margin-top: 0;
+      }
+
+      p {
+        margin: 0 0 1rem 0;
+      }
+
+      em {
+        color: #aaa;
+      }
+
+      strong {
+        color: #fff;
+      }
+
+      ul, ol {
+        margin: 0 0 1rem 1.5rem;
+        padding: 0;
+      }
+    }
+  }
 }
 
 .btn-secondary {

@@ -8,6 +8,7 @@ interface EditableChoice {
   text: string;
   next_node: string;
   isNew?: boolean;
+  useCustomTarget?: boolean; // When true, shows text input instead of dropdown
 }
 
 type EditorMode = 'create' | 'edit' | 'start';
@@ -127,14 +128,41 @@ type EditorMode = 'create' | 'edit' | 'start';
                 placeholder="Choice text..."
                 class="choice-text"
               />
-              <input 
-                type="text"
-                [(ngModel)]="choice.next_node"
-                [name]="'choiceNextNode' + $index"
-                placeholder="target-node-key"
-                pattern="^[a-z0-9-]+$"
-                class="choice-target"
-              />
+              <div class="choice-target-wrapper">
+                @if (choice.useCustomTarget) {
+                  <input 
+                    type="text"
+                    [(ngModel)]="choice.next_node"
+                    [name]="'choiceNextNode' + $index"
+                    placeholder="new-node-key"
+                    pattern="^[a-z0-9-]+$"
+                    class="choice-target"
+                  />
+                  <button 
+                    type="button" 
+                    class="btn-icon btn-small-icon"
+                    (click)="toggleCustomTarget($index, false)"
+                    title="Select existing node"
+                  >
+                    📋
+                  </button>
+                } @else {
+                  <select
+                    [(ngModel)]="choice.next_node"
+                    [name]="'choiceNextNode' + $index"
+                    class="choice-target-select"
+                    (ngModelChange)="onTargetNodeChange($index, $event)"
+                  >
+                    <option value="" disabled>Select target node...</option>
+                    @for (node of availableNodes(); track node.node_key) {
+                      <option [value]="node.node_key">
+                        {{ node.node_key }}{{ node.title ? ' (' + node.title + ')' : '' }}
+                      </option>
+                    }
+                    <option value="__new__">+ Create new node...</option>
+                  </select>
+                }
+              </div>
               <button 
                 type="button" 
                 class="btn-icon btn-danger"
@@ -167,6 +195,38 @@ type EditorMode = 'create' | 'edit' | 'start';
           <div class="error-message">{{ storyService.error() }}</div>
         }
       </form>
+
+      <!-- New Node Dialog -->
+      @if (showNewNodeDialog()) {
+        <div class="dialog-overlay" (click)="cancelNewNodeDialog()">
+          <div class="dialog" (click)="$event.stopPropagation()">
+            <h4>Create New Node</h4>
+            <div class="form-group">
+              <label for="newNodeKey">Node Key</label>
+              <input 
+                type="text" 
+                id="newNodeKey"
+                [(ngModel)]="newNodeKey"
+                pattern="^[a-z0-9-]+$"
+                placeholder="e.g., forest-path"
+                (keyup.enter)="confirmNewNodeDialog()"
+              />
+              <small class="hint">Lowercase letters, numbers, and hyphens only</small>
+            </div>
+            <div class="dialog-actions">
+              <button type="button" class="btn-secondary" (click)="cancelNewNodeDialog()">Cancel</button>
+              <button 
+                type="button" 
+                class="btn-primary" 
+                (click)="confirmNewNodeDialog()"
+                [disabled]="!isValidNodeKey(newNodeKey)"
+              >
+                Create & Connect
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -348,9 +408,41 @@ type EditorMode = 'create' | 'edit' | 'start';
         flex: 2;
       }
 
+      .choice-target-wrapper {
+        flex: 1;
+        display: flex;
+        gap: 0.25rem;
+      }
+
       .choice-target {
         flex: 1;
         font-family: monospace;
+      }
+
+      .choice-target-select {
+        flex: 1;
+        padding: 0.5rem;
+        border: 1px solid #333;
+        border-radius: 6px;
+        background: #2a2a3e;
+        color: #eaeaea;
+        font-size: 0.9rem;
+        cursor: pointer;
+
+        &:focus {
+          outline: none;
+          border-color: #e94560;
+        }
+
+        option {
+          background: #2a2a3e;
+          color: #eaeaea;
+        }
+      }
+
+      .btn-small-icon {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.9rem;
       }
     }
 
@@ -437,6 +529,40 @@ type EditorMode = 'create' | 'edit' | 'start';
       border-radius: 8px;
       color: #e94560;
     }
+
+    .dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .dialog {
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 1.5rem;
+      min-width: 350px;
+      max-width: 450px;
+
+      h4 {
+        margin: 0 0 1rem;
+        color: #e94560;
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+      }
+    }
   `]
 })
 export class NodeEditorComponent implements OnInit {
@@ -454,6 +580,12 @@ export class NodeEditorComponent implements OnInit {
   // Local state
   readonly showPreview = signal(false);
   readonly editableChoices = signal<EditableChoice[]>([]);
+  
+  // New node dialog state
+  readonly showNewNodeDialog = signal(false);
+  private pendingChoiceIndex = -1;
+  private previousNextNode = '';
+  newNodeKey = '';
 
   // Form data - story_id will be set from currentStory
   formData: StoryNodeFormData = {
@@ -485,6 +617,14 @@ export class NodeEditorComponent implements OnInit {
     }
   });
 
+  // Available nodes for dropdown (excludes current node)
+  readonly availableNodes = computed(() => {
+    const currentNodeKey = this.selectedNode()?.node_key;
+    return this.storyService.nodes()
+      .filter(n => n.node_key !== currentNodeKey)
+      .sort((a, b) => a.node_key.localeCompare(b.node_key));
+  });
+
   isValid(): boolean {
     const nodeKeyValid = /^[a-z0-9-]+$/.test(this.formData.node_key);
     const hasContent = this.formData.text.trim().length > 0;
@@ -511,11 +651,17 @@ export class NodeEditorComponent implements OnInit {
     // Update choices when input changes
     effect(() => {
       const choices = this.existingChoices();
+      const availableNodeKeys = new Set(this.storyService.nodes().map(n => n.node_key));
+      const currentNodeKey = this.selectedNode()?.node_key;
+      
       this.editableChoices.set(
         choices.map(c => ({
           id: c.id,
           text: c.text,
-          next_node: c.next_node
+          next_node: c.next_node,
+          // Use custom input if target doesn't exist or is self-reference
+          useCustomTarget: c.next_node === currentNodeKey || 
+                          (!!c.next_node && !availableNodeKeys.has(c.next_node))
         }))
       );
     });
@@ -543,6 +689,150 @@ export class NodeEditorComponent implements OnInit {
     this.editableChoices.update(choices => 
       choices.filter((_, i) => i !== index)
     );
+  }
+
+  toggleCustomTarget(index: number, useCustom: boolean): void {
+    this.editableChoices.update(choices => {
+      const updated = [...choices];
+      updated[index] = { ...updated[index], useCustomTarget: useCustom, next_node: '' };
+      return updated;
+    });
+  }
+
+  onTargetNodeChange(index: number, value: string): void {
+    if (value === '__new__') {
+      // Store the previous value and choice index
+      const choices = this.editableChoices();
+      this.previousNextNode = choices[index]?.next_node || '';
+      this.pendingChoiceIndex = index;
+      
+      // Generate suggested node key
+      const baseKey = this.formData.node_key || 'node';
+      this.newNodeKey = this.generateUniqueNodeKey(baseKey);
+      
+      // Reset the select to empty while dialog is open
+      this.editableChoices.update(choices => {
+        const updated = [...choices];
+        updated[index] = { ...updated[index], next_node: '' };
+        return updated;
+      });
+      
+      // Show the dialog
+      this.showNewNodeDialog.set(true);
+    }
+  }
+
+  isValidNodeKey(key: string): boolean {
+    return /^[a-z0-9-]+$/.test(key) && key.length > 0;
+  }
+
+  async confirmNewNodeDialog(): Promise<void> {
+    if (!this.isValidNodeKey(this.newNodeKey)) return;
+    
+    const index = this.pendingChoiceIndex;
+    const nodeKey = this.newNodeKey;
+    const currentNodeId = this.nodeId();
+    
+    // Check if node key already exists
+    if (this.storyService.nodeKeyExists(nodeKey)) {
+      // Just connect to existing node
+      this.editableChoices.update(choices => {
+        const updated = [...choices];
+        updated[index] = { ...updated[index], next_node: nodeKey };
+        return updated;
+      });
+    } else {
+      // Create a new normal node (not pending)
+      const storyId = this.storyService.currentStory()?.id;
+      if (!storyId) return;
+      
+      const newNode = await this.storyService.createNode({
+        story_id: storyId,
+        node_key: nodeKey,
+        title: '',
+        text: '',
+        pending: false
+      });
+      
+      if (newNode) {
+        // Update the choice to point to the new node
+        this.editableChoices.update(choices => {
+          const updated = [...choices];
+          updated[index] = { ...updated[index], next_node: newNode.node_key };
+          return updated;
+        });
+        
+        // If editing an existing node, save the choice connection immediately
+        if (currentNodeId) {
+          const choice = this.editableChoices()[index];
+          if (choice && choice.text.trim()) {
+            if (choice.id && !choice.isNew) {
+              // Update existing choice
+              await this.storyService.updateChoice(choice.id, {
+                text: choice.text,
+                next_node: newNode.node_key
+              });
+            } else {
+              // Create new choice and update local state with the ID
+              const savedChoice = await this.storyService.createChoice({
+                node_id: currentNodeId,
+                text: choice.text || 'Go to ' + nodeKey,
+                next_node: newNode.node_key
+              });
+              if (savedChoice) {
+                this.editableChoices.update(choices => {
+                  const updated = [...choices];
+                  updated[index] = { 
+                    ...updated[index], 
+                    id: savedChoice.id, 
+                    text: savedChoice.text,
+                    next_node: savedChoice.next_node,
+                    isNew: false 
+                  };
+                  return updated;
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Close dialog and reset
+    this.showNewNodeDialog.set(false);
+    this.pendingChoiceIndex = -1;
+    this.newNodeKey = '';
+  }
+
+  cancelNewNodeDialog(): void {
+    // Restore previous value
+    const index = this.pendingChoiceIndex;
+    if (index >= 0) {
+      this.editableChoices.update(choices => {
+        const updated = [...choices];
+        updated[index] = { ...updated[index], next_node: this.previousNextNode };
+        return updated;
+      });
+    }
+    
+    // Close dialog and reset
+    this.showNewNodeDialog.set(false);
+    this.pendingChoiceIndex = -1;
+    this.previousNextNode = '';
+    this.newNodeKey = '';
+  }
+
+  private generateUniqueNodeKey(baseKey: string): string {
+    const existingKeys = new Set(this.storyService.nodes().map(n => n.node_key));
+    let suffix = 1;
+    let newKey = `${baseKey}-${suffix}`;
+    
+    while (existingKeys.has(newKey)) {
+      suffix++;
+      newKey = `${baseKey}-${suffix}`;
+    }
+    
+    return newKey;
   }
 
   async setAsStart(): Promise<void> {

@@ -1,8 +1,14 @@
 <header class="app-header">
   <h1>{{ title }}</h1>
   <nav>
-    <a routerLink="/story">Story</a>
-    <a routerLink="/gamemaster">Game Master</a>
+    @if (sharedStory.hasStorySelected()) {
+      <span class="current-story">{{ sharedStory.currentStoryName() }}</span>
+      <a routerLink="/story">Story so far</a>
+      <a routerLink="/gamemaster">Builder</a>
+      <button class="leave-story-btn" (click)="leaveStory()">Leave Story</button>
+    } @else {
+      <a routerLink="/select-story">Select Story</a>
+    }
     <span class="user-info">{{ user().name || 'Game Master' }}</span>
   </nav>
 </header>

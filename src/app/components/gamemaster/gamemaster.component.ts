@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule, DatePipe } from '@angular/common';
 import { GamemasterStoryService, StoryNodeRecord, ChoiceRecord, StoryRecord, StoryEventRecord } from '../../services/gamemaster-story.service';
 import { AuthService } from '../../services/auth.service';
+import { SharedStoryService } from '../../services/shared-story.service';
 import { NodeEditorComponent } from './node-editor/node-editor.component';
 import { StoryGraphComponent } from './story-graph/story-graph.component';
 
@@ -33,6 +34,7 @@ interface WizardStartNode {
 export class GamemasterComponent implements OnInit {
   readonly storyService = inject(GamemasterStoryService);
   readonly authService = inject(AuthService);
+  private readonly sharedStoryService = inject(SharedStoryService);
 
   readonly graphComponent = viewChild(StoryGraphComponent);
   @ViewChildren('storyCard') storyCards!: QueryList<ElementRef<HTMLElement>>;
@@ -149,6 +151,12 @@ export class GamemasterComponent implements OnInit {
   ngOnInit(): void {
     // Load available stories on init
     this.storyService.loadStories();
+    
+    // If SharedStoryService has a story selected, load it
+    const sharedStoryId = this.sharedStoryService.getCurrentStoryId();
+    if (sharedStoryId && !this.storyService.currentStory()) {
+      this.storyService.selectStory(sharedStoryId);
+    }
   }
 
   // Story selection

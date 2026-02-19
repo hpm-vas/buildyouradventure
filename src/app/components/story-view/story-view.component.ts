@@ -1,10 +1,10 @@
 import { Component, inject, OnInit, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StoryService } from '../../services/story.service';
+import { SharedStoryService } from '../../services/shared-story.service';
 import { EmotionCardsComponent } from '../emotion-cards/emotion-cards.component';
 import { DiceRollerComponent } from '../dice-roller/dice-roller.component';
 import { FreeTextInputComponent } from '../free-text-input/free-text-input.component';
-import { StorySelectComponent } from '../story-select/story-select.component';
 import { DiceResult, Story, Choice } from '../../models/story.model';
 
 @Component({
@@ -14,14 +14,14 @@ import { DiceResult, Story, Choice } from '../../models/story.model';
     CommonModule, 
     EmotionCardsComponent, 
     DiceRollerComponent, 
-    FreeTextInputComponent,
-    StorySelectComponent
+    FreeTextInputComponent
   ],
   templateUrl: './story-view.component.html',
   styleUrl: './story-view.component.scss'
 })
 export class StoryViewComponent implements OnInit {
   protected storyService = inject(StoryService);
+  private readonly sharedStoryService = inject(SharedStoryService);
   
   // If a story ID is provided via route, use that
   storyId = input<string>();
@@ -36,15 +36,18 @@ export class StoryViewComponent implements OnInit {
   pendingDiceChoice = signal<Choice | null>(null);
 
   ngOnInit(): void {
+    // Check if a story ID is provided via route input
     const id = this.storyId();
     if (id) {
       this.storyService.loadStoryContext(id);
+      return;
     }
-    // Otherwise, wait for user to select a story
-  }
-
-  onStorySelected(story: Story): void {
-    this.storyService.loadStoryContext(story.id);
+    
+    // Otherwise, load the story from SharedStoryService (set by route guard)
+    const sharedStoryId = this.sharedStoryService.getCurrentStoryId();
+    if (sharedStoryId) {
+      this.storyService.loadStoryContext(sharedStoryId);
+    }
   }
 
   selectChoice(choiceId: string): void {

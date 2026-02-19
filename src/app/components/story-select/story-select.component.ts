@@ -1,9 +1,11 @@
 import { Component, signal, inject, OnInit, output, computed, ElementRef, QueryList, ViewChildren, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Story } from '../../models/story.model';
 import { LocalStorageService, StoredStory } from '../../services/local-storage.service';
 import { AuthService } from '../../services/auth.service';
+import { SharedStoryService } from '../../services/shared-story.service';
 
 type SortOption = 'newest' | 'oldest' | 'alphabetical';
 
@@ -476,6 +478,8 @@ type SortOption = 'newest' | 'oldest' | 'alphabetical';
 export class StorySelectComponent implements OnInit {
   private readonly storage = inject(LocalStorageService);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly sharedStoryService = inject(SharedStoryService);
 
   @ViewChildren('storyCard') storyCards!: QueryList<ElementRef<HTMLElement>>;
 
@@ -546,7 +550,15 @@ export class StorySelectComponent implements OnInit {
   }
 
   selectStory(story: Story): void {
+    // Find the StoredStory to set in shared service
+    const storedStory = this.storage.getStoryById(story.id);
+    if (storedStory) {
+      this.sharedStoryService.selectStoryDirect(storedStory);
+    }
+    // Emit for backward compatibility (if used as child component)
     this.storySelected.emit(story);
+    // Navigate to the builder (gamemaster) view
+    this.router.navigate(['/gamemaster']);
   }
 
   /** Handle keyboard navigation within the grid */

@@ -1,37 +1,25 @@
 <article class="story-view">
-  <!-- Story Selection -->
-  @if (!storyService.currentStory()) {
-    <app-story-select (storySelected)="onStorySelected($event)" />
+  @if (storyService.loading()) {
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Loading story...</p>
+    </div>
+  } @else if (storyService.error()) {
+    <div class="error">
+      <p>{{ storyService.error() }}</p>
+      <button (click)="storyService.loadStoryContext(storyService.currentStory()!.id)">Retry</button>
+    </div>
   } @else {
-    <!-- Story Header with Back Button -->
-    <nav class="story-nav">
-      <button class="btn-back" (click)="storyService.clearStorySelection()">
-        &larr; Stories
-      </button>
-      <h1 class="story-title">{{ storyService.currentStory()?.name }}</h1>
-    </nav>
+    @if (storyService.currentNode(); as node) {
+      <header class="story-header">
+        @if (node.title) {
+          <h2>{{ node.title }}</h2>
+        }
+      </header>
 
-    @if (storyService.loading()) {
-      <div class="loading">
-        <div class="spinner"></div>
-        <p>Loading story...</p>
-      </div>
-    } @else if (storyService.error()) {
-      <div class="error">
-        <p>{{ storyService.error() }}</p>
-        <button (click)="storyService.loadStoryContext(storyService.currentStory()!.id)">Retry</button>
-      </div>
-    } @else {
-      @if (storyService.currentNode(); as node) {
-        <header class="story-header">
-          @if (node.title) {
-            <h2>{{ node.title }}</h2>
-          }
-        </header>
-
-        <section class="story-content">
-          <div [innerHTML]="node.text"></div>
-        </section>
+      <section class="story-content">
+        <div [innerHTML]="node.text"></div>
+      </section>
 
         <!-- Media (if present) -->
         @if (node.media) {
@@ -183,5 +171,4 @@
         </div>
       }
     }
-  }
 </article>

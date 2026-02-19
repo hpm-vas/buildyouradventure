@@ -1,6 +1,23 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { LocalStorageService, StoredStory, StoredStoryNode, StoredChoice } from './local-storage.service';
-import { InteractionType, DiceConfig } from '../models/story.model';
+import { LocalStorageService, StoredStory, StoredStoryNode, StoredChoice, StoredStoryEvent, StoredEmotionCard } from './local-storage.service';
+import { InteractionType, DiceConfig, DiceResult } from '../models/story.model';
+
+/**
+ * Record interface for story events (player interactions)
+ */
+export interface StoryEventRecord {
+  id: string;
+  storyId: string;
+  nodeKey: string;
+  nodeTitle?: string;  // Resolved from node
+  choiceId: string | null;
+  choiceText: string | null;
+  selectedCards: string[] | null;
+  selectedCardLabels?: string[];  // Resolved from card IDs
+  freeText: string | null;
+  diceResult: DiceResult | null;
+  created: string;
+}
 
 /**
  * Record interface for stories (compatible with existing components)
@@ -113,6 +130,7 @@ export class AdminStoryService {
   // Reactive state
   private _nodes = signal<StoryNodeRecord[]>([]);
   private _choices = signal<ChoiceRecord[]>([]);
+  private _events = signal<StoryEventRecord[]>([]);
   private _loading = signal(false);
   private _error = signal<string | null>(null);
 
@@ -120,6 +138,7 @@ export class AdminStoryService {
   readonly stories = this._stories.asReadonly();
   readonly nodes = this._nodes.asReadonly();
   readonly choices = this._choices.asReadonly();
+  readonly events = this._events.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
@@ -215,6 +234,53 @@ export class AdminStoryService {
       next_node: c.nextNode,
       created: c.created
     };
+  }
+
+  /**
+   * Convert stored event to record format with resolved node title and card labels
+   */
+  private toEventRecord(e: StoredStoryEvent, storyId: string): StoryEventRecord {
+    // Resolve node title
+    const node = this.storage.getNodeByKey(storyId, e.nodeKey);
+    const nodeTitle = node?.title || undefined;
+
+    // Resolve card labels if cards were selected
+    let selectedCardLabels: string[] | undefined;
+    if (e.selectedCards && e.selectedCards.length > 0) {
+      selectedCardLabels = this.resolveCardLabels(e.selectedCards);
+    }
+
+    return {
+      id: e.id,
+      storyId: e.storyId,
+      nodeKey: e.nodeKey,
+      nodeTitle,
+      choiceId: e.choiceId,
+      choiceText: e.choiceText,
+      selectedCards: e.selectedCards,
+      selectedCardLabels,
+      freeText: e.freeText,
+      diceResult: e.diceResult,
+      created: e.created
+    };
+  }
+
+  /**
+   * Resolve emotion card IDs to their labels
+   */
+  private resolveCardLabels(cardIds: string[]): string[] {
+    const labels: string[] = [];
+    // Get all card decks and cards
+    const decks = this.storage.getCardDecks();
+    for (const deck of decks) {
+      const cards = this.storage.getEmotionCardsByDeckId(deck.id);
+      for (const card of cards) {
+        if (cardIds.includes(card.id)) {
+          labels.push(card.label);
+        }
+      }
+    }
+    return labels;
   }
 
   /**
@@ -347,6 +413,23 @@ export class AdminStoryService {
     this._currentStory.set(null);
     this._nodes.set([]);
     this._choices.set([]);
+    this._events.set([]);
+  }
+
+  /**
+   * Clear all player events/history for the current story
+   */
+  async clearStoryHistory(): Promise<void> {
+    const storyId = this._currentStory()?.id;
+    if (!storyId) return;
+
+    try {
+      this.storage.clearEventsForStory(storyId);
+      this._events.set([]);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to clear history';
+      this._error.set(message);
+    }
   }
 
   // =====================
@@ -369,9 +452,11 @@ export class AdminStoryService {
     try {
       const nodes = this.storage.getNodesByStoryId(storyId).map(n => this.toNodeRecord(n));
       const choices = this.storage.getChoicesByStoryId(storyId).map(c => this.toChoiceRecord(c));
+      const events = this.storage.getEventsByStoryId(storyId).map(e => this.toEventRecord(e, storyId));
 
       this._nodes.set(nodes);
       this._choices.set(choices);
+      this._events.set(events);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load story data';
       this._error.set(message);

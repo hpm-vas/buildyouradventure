@@ -5,7 +5,7 @@
   } @else {
     <!-- Story Header with Back Button -->
     <nav class="story-nav">
-      <button class="btn-back" (click)="storyService.resetInteractionState()">
+      <button class="btn-back" (click)="storyService.clearStorySelection()">
         &larr; Stories
       </button>
       <h1 class="story-title">{{ storyService.currentStory()?.name }}</h1>

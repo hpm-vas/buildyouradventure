@@ -283,6 +283,12 @@ You stand at the edge of an ancient forest. The trees loom tall and twisted, the
           >
             📋 List
           </button>
+          <button 
+            [class.active]="viewMode() === 'history'" 
+            (click)="setViewMode('history')"
+          >
+            📜 History
+          </button>
         </div>
         <button class="btn-primary" (click)="openCreateEditor()">+ New Node</button>
       </div>
@@ -337,11 +343,87 @@ You stand at the edge of an ancient forest. The trees loom tall and twisted, the
             }
           }
         </div>
-      } @else {
+      } @else if (viewMode() === 'graph') {
         <!-- Graph View -->
         <app-story-graph 
           (nodeSelected)="onGraphNodeSelected($event)"
         />
+      } @else if (viewMode() === 'history') {
+        <!-- History View: Story So Far -->
+        <div class="history-view">
+          <div class="history-header">
+            <h3>Story So Far</h3>
+            @if (storyService.events().length > 0) {
+              <button class="btn-danger-outline" (click)="clearHistory()">Clear History</button>
+            }
+          </div>
+
+          @if (storyService.loading()) {
+            <div class="loading">Loading history...</div>
+          } @else if (storyService.events().length === 0) {
+            <div class="empty-state">
+              <p>📜 No player interactions yet</p>
+              <p class="hint">Player choices, card selections, and dice rolls will appear here.</p>
+            </div>
+          } @else {
+            <div class="history-timeline">
+              @for (event of reversedEvents(); track event.id) {
+                <div class="history-entry" (click)="navigateToEventNode(event)">
+                  <div class="entry-header">
+                    <span class="entry-node">
+                      @if (event.nodeTitle) {
+                        {{ event.nodeTitle }}
+                      } @else {
+                        {{ event.nodeKey }}
+                      }
+                    </span>
+                    <span class="entry-time">{{ formatEventTime(event.created) }}</span>
+                  </div>
+
+                  <div class="entry-details">
+                    @if (event.choiceText) {
+                      <div class="entry-item choice">
+                        <span class="item-icon">→</span>
+                        <span class="item-text">{{ event.choiceText }}</span>
+                      </div>
+                    }
+
+                    @if (event.selectedCardLabels && event.selectedCardLabels.length > 0) {
+                      <div class="entry-item cards">
+                        <span class="item-icon">🎴</span>
+                        <span class="item-text">{{ event.selectedCardLabels.join(', ') }}</span>
+                      </div>
+                    }
+
+                    @if (event.diceResult) {
+                      <div class="entry-item dice">
+                        <span class="item-icon">🎲</span>
+                        <span class="item-text">
+                          Rolled {{ event.diceResult.finalTotal }}
+                          @if (event.diceResult.success !== undefined) {
+                            <span class="dice-result" [class.success]="event.diceResult.success" [class.failure]="!event.diceResult.success">
+                              {{ event.diceResult.success ? '✓' : '✗' }}
+                            </span>
+                          }
+                          @if (event.diceResult.isManual) {
+                            <span class="manual-badge">manual</span>
+                          }
+                        </span>
+                      </div>
+                    }
+
+                    @if (event.freeText) {
+                      <div class="entry-item text">
+                        <span class="item-icon">💬</span>
+                        <span class="item-text">"{{ event.freeText.length > 100 ? event.freeText.slice(0, 100) + '...' : event.freeText }}"</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
       }
     </aside>
 

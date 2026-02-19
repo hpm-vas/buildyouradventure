@@ -1,13 +1,13 @@
 import { Component, signal, inject, OnInit, computed, viewChild, ViewChildren, QueryList, ElementRef } from '@angular/core';
 import { marked } from 'marked';
 import { FormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
-import { AdminStoryService, StoryNodeRecord, ChoiceRecord, StoryRecord } from '../../services/admin-story.service';
+import { CommonModule, DatePipe } from '@angular/common';
+import { AdminStoryService, StoryNodeRecord, ChoiceRecord, StoryRecord, StoryEventRecord } from '../../services/admin-story.service';
 import { AuthService } from '../../services/auth.service';
 import { NodeEditorComponent } from './node-editor/node-editor.component';
 import { StoryGraphComponent } from './story-graph/story-graph.component';
 
-type ViewMode = 'graph' | 'list';
+type ViewMode = 'graph' | 'list' | 'history';
 type EditorMode = 'closed' | 'create' | 'edit';
 type SortOption = 'newest' | 'oldest' | 'alphabetical';
 type WizardStep = 'meta' | 'startNode' | null;
@@ -114,6 +114,11 @@ export class AdminComponent implements OnInit {
     dummy: this.storyService.dummyNodeCount(),
     hasStart: !!this.storyService.startNode()
   }));
+
+  /** Story events in reverse chronological order (newest first) */
+  readonly reversedEvents = computed(() => {
+    return [...this.storyService.events()].reverse();
+  });
 
   /** Check if wizard can proceed to next step */
   readonly canProceedToStartNode = computed(() => 
@@ -356,6 +361,32 @@ export class AdminComponent implements OnInit {
     return 'complete';
   }
 
+  // History helpers
+  formatEventTime(isoString: string): string {
+    const date = new Date(isoString);
+    return date.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  async clearHistory(): Promise<void> {
+    if (!confirm('Clear all player history for this story? This cannot be undone.')) {
+      return;
+    }
+    await this.storyService.clearStoryHistory();
+  }
+
+  navigateToEventNode(event: StoryEventRecord): void {
+    // Find the node by nodeKey and select it
+    const node = this.storyService.nodes().find(n => n.node_key === event.nodeKey);
+    if (node) {
+      this.viewMode.set('graph');
+      this.selectNode(node.id);
+    }
+  }
   getChoiceCount(nodeId: string): number {
     return this.storyService.choices().filter(c => c.node_id === nodeId).length;
   }

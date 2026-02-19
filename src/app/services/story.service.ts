@@ -263,6 +263,15 @@ export class StoryService {
     this._diceResult.set(null);
   }
 
+  /** Clear story selection and return to story list */
+  clearStorySelection(): void {
+    this._currentStory.set(null);
+    this._currentNode.set(null);
+    this._storyHistory.set([]);
+    this._availableCards.set([]);
+    this.resetInteractionState();
+  }
+
   /**
    * Submit interaction and progress the story
    * @param choiceId Optional choice ID when selecting a choice

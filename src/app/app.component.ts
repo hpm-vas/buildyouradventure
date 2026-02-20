@@ -17,11 +17,16 @@ export class AppComponent {
   private readonly router = inject(Router);
   readonly sharedStory = inject(SharedStoryService);
 
-  // User info for display (always gamemaster in local mode)
+  // User info for display
   readonly user = this.auth.user;
 
   leaveStory(): void {
     this.sharedStory.clearStory();
     this.router.navigate(['/select-story']);
+  }
+
+  logout(): void {
+    this.sharedStory.clearStory();
+    this.auth.logout();
   }
 }

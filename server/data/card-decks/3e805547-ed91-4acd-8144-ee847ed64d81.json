@@ -1,0 +1,62 @@
+{
+  "name": "Default Emotions",
+  "description": "Basic emotion cards for creative input",
+  "isGlobal": true,
+  "cards": [
+    {
+      "id": "2ad0e959-924f-4ec0-a5ff-7cffb67fd860",
+      "deckId": "3e805547-ed91-4acd-8144-ee847ed64d81",
+      "label": "Happy",
+      "description": "Joyful, content",
+      "icon": "😊",
+      "color": "#FFD700",
+      "sortOrder": 1
+    },
+    {
+      "id": "5705a87a-925c-4585-b93a-8a6640763dac",
+      "deckId": "3e805547-ed91-4acd-8144-ee847ed64d81",
+      "label": "Sad",
+      "description": "Melancholic, sorrowful",
+      "icon": "😢",
+      "color": "#4169E1",
+      "sortOrder": 2
+    },
+    {
+      "id": "51a211d3-61f5-4e7a-ab4d-9b863e9af536",
+      "deckId": "3e805547-ed91-4acd-8144-ee847ed64d81",
+      "label": "Angry",
+      "description": "Frustrated, furious",
+      "icon": "😠",
+      "color": "#DC143C",
+      "sortOrder": 3
+    },
+    {
+      "id": "53cc34e6-b73a-4ffe-82aa-a3b0263c98f6",
+      "deckId": "3e805547-ed91-4acd-8144-ee847ed64d81",
+      "label": "Scared",
+      "description": "Fearful, anxious",
+      "icon": "😨",
+      "color": "#800080",
+      "sortOrder": 4
+    },
+    {
+      "id": "a3d0991e-d95a-4968-bbd5-79e60eaa8dbf",
+      "deckId": "3e805547-ed91-4acd-8144-ee847ed64d81",
+      "label": "Surprised",
+      "description": "Astonished, amazed",
+      "icon": "😲",
+      "color": "#FF8C00",
+      "sortOrder": 5
+    },
+    {
+      "id": "cfeb51e6-6b83-4d35-9087-469e454b54de",
+      "deckId": "3e805547-ed91-4acd-8144-ee847ed64d81",
+      "label": "Curious",
+      "description": "Inquisitive, interested",
+      "icon": "🤔",
+      "color": "#32CD32",
+      "sortOrder": 6
+    }
+  ],
+  "id": "3e805547-ed91-4acd-8144-ee847ed64d81"
+}

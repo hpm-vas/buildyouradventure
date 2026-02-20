@@ -1,6 +1,7 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
+import { Router } from '@angular/router';
 
-export type UserRole = 'player' | 'reader' | 'gamemaster';
+export type UserRole = 'player' | 'gamemaster';
 
 export interface User {
   id: string;
@@ -8,21 +9,19 @@ export interface User {
   name: string | null;
 }
 
+const STORAGE_KEY = 'plot-smithy-role';
+
 /**
- * Simplified auth service - single gamemaster mode
- * No actual authentication, always returns admin user
+ * Auth service with simple role selection
+ * No passwords - just choose Gamemaster or Player
  */
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  // Hardcoded gamemaster user for single-user local mode
-  private readonly _user = signal<User>({
-    id: 'local-gamemaster',
-    role: 'gamemaster',
-    name: 'Game Master'
-  });
+  private router = inject(Router);
   
+  private readonly _user = signal<User | null>(null);
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
 
@@ -30,30 +29,54 @@ export class AuthService {
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   
-  // Always authenticated in local mode
-  readonly isAuthenticated = signal(true).asReadonly();
-
-  readonly role = computed(() => this._user()?.role ?? 'gamemaster');
-  readonly isGamemaster = computed(() => true);
+  readonly isAuthenticated = computed(() => this._user() !== null);
+  readonly role = computed(() => this._user()?.role ?? null);
+  readonly isGamemaster = computed(() => this._user()?.role === 'gamemaster');
+  readonly isPlayer = computed(() => this._user()?.role === 'player');
 
   constructor() {
-    console.log('AuthService: Running in local gamemaster mode');
+    this.loadStoredRole();
   }
 
   /**
-   * Login is a no-op in local mode - always succeeds
-   * @deprecated Not needed in local mode
+   * Load previously selected role from localStorage
    */
-  async loginWithPin(_pin: string): Promise<boolean> {
-    return true;
+  private loadStoredRole(): void {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'gamemaster' || stored === 'player') {
+      this.setRole(stored, false);
+    }
   }
 
   /**
-   * Logout is a no-op in local mode
-   * @deprecated Not needed in local mode  
+   * Set user role and optionally navigate
+   */
+  setRole(role: UserRole, navigate: boolean = true): void {
+    const user: User = {
+      id: `local-${role}`,
+      role,
+      name: role === 'gamemaster' ? 'Game Master' : 'Player'
+    };
+    
+    this._user.set(user);
+    localStorage.setItem(STORAGE_KEY, role);
+    
+    if (navigate) {
+      if (role === 'gamemaster') {
+        this.router.navigate(['/gamemaster']);
+      } else {
+        this.router.navigate(['/player']);
+      }
+    }
+  }
+
+  /**
+   * Clear role and return to role selection
    */
   logout(): void {
-    // No-op - always authenticated in local mode
+    this._user.set(null);
+    localStorage.removeItem(STORAGE_KEY);
+    this.router.navigate(['/']);
   }
 
   /**
@@ -63,3 +86,4 @@ export class AuthService {
     this._error.set(null);
   }
 }
+

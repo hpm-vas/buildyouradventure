@@ -9,7 +9,10 @@
     } @else {
       <a routerLink="/select-story">Select Story</a>
     }
-    <span class="user-info">{{ user().name || 'Game Master' }}</span>
+    @if (user()) {
+      <span class="user-info">{{ user()?.name }}</span>
+      <button class="logout-btn" (click)="logout()">Switch Role</button>
+    }
   </nav>
 </header>
 

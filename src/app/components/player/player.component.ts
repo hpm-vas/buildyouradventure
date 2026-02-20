@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { LocalStorageService, StoredStory } from '../../services/local-storage.service';
+import { StoredStory } from '../../services/local-storage.service';
+import { StoryStorageService } from '../../services/story-storage.service';
 
 @Component({
   selector: 'app-player',
@@ -14,7 +15,7 @@ import { LocalStorageService, StoredStory } from '../../services/local-storage.s
 })
 export class PlayerComponent implements OnInit {
   private auth = inject(AuthService);
-  private storage = inject(LocalStorageService);
+  private storage = inject(StoryStorageService);
   private router = inject(Router);
 
   // State
@@ -43,10 +44,16 @@ export class PlayerComponent implements OnInit {
 
   private loadStories(): void {
     this.loading.set(true);
-    // Load stories from LocalStorage
-    const allStories = this.storage.getStories();
-    this.stories.set(allStories);
-    this.loading.set(false);
+    this.storage.getStories().subscribe({
+      next: stories => {
+        this.stories.set(stories);
+        this.loading.set(false);
+      },
+      error: err => {
+        console.error('Failed to load stories', err);
+        this.loading.set(false);
+      }
+    });
   }
 
   diveIn(story: StoredStory): void {

@@ -408,20 +408,25 @@ export class GamemasterComponent implements OnInit {
 
   /**
    * Check if a story can be deleted (only has a start node)
+   * Note: This is an optimistic check for the UI. The actual validation happens in deleteStory.
    */
   canDeleteStory(story: StoryRecord): boolean {
-    const result = this.storyService.hasOnlyStartNode(story.id);
-    console.log('canDeleteStory for', story.name, ':', result);
-    return result;
+    // For now, allow the delete button to be visible.
+    // The click handler will perform the async check.
+    return true; 
   }
 
   /**
    * Delete a story that only has a start node
    */
-  deleteStory(story: StoryRecord, event: Event): void {
+  async deleteStory(story: StoryRecord, event: Event): Promise<void> {
     event.stopPropagation(); // Prevent selecting the story
+
+    // Since checking hasOnlyStartNode is async, we allow the click and check inside
+    const canDelete = await this.storyService.hasOnlyStartNode(story.id);
     
-    if (!this.canDeleteStory(story)) {
+    if (!canDelete) {
+      alert('Cannot delete story: It has more than just the start node.');
       return;
     }
 
@@ -429,16 +434,20 @@ export class GamemasterComponent implements OnInit {
       return;
     }
 
-    const success = this.storyService.deleteStory(story.id);
+    const success = await this.storyService.deleteStory(story.id);
     if (success) {
       console.log('Story deleted successfully:', story.id);
+      // Clear shared story service if needed
+      if (this.sharedStoryService.getCurrentStoryId() === story.id) {
+        this.sharedStoryService.clearStory();
+      }
     }
   }
 
   /**
    * Delete the currently selected story (only works when story has only start node)
    */
-  deleteCurrentStory(): void {
+  async deleteCurrentStory(): Promise<void> {
     const story = this.storyService.currentStory();
     if (!story?.id || !this.canDeleteCurrentStory()) {
       return;
@@ -448,7 +457,7 @@ export class GamemasterComponent implements OnInit {
       return;
     }
 
-    const success = this.storyService.deleteStory(story.id);
+    const success = await this.storyService.deleteStory(story.id);
     if (success) {
       console.log('Story deleted successfully:', story.id);
       // Clear shared story service and go back to story list

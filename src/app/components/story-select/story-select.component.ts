@@ -1,9 +1,11 @@
 import { Component, signal, inject, OnInit, output, computed, ElementRef, QueryList, ViewChildren, AfterViewInit } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Story } from '../../models/story.model';
-import { LocalStorageService, StoredStory } from '../../services/local-storage.service';
+import { StoredStory } from '../../services/local-storage.service';
+import { StoryStorageService } from '../../services/story-storage.service';
 import { AuthService } from '../../services/auth.service';
 import { SharedStoryService } from '../../services/shared-story.service';
 
@@ -473,7 +475,7 @@ type SortOption = 'newest' | 'oldest' | 'alphabetical';
   `]
 })
 export class StorySelectComponent implements OnInit {
-  private readonly storage = inject(LocalStorageService);
+  private readonly storage = inject(StoryStorageService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly sharedStoryService = inject(SharedStoryService);
@@ -534,8 +536,7 @@ export class StorySelectComponent implements OnInit {
     this.error.set(null);
 
     try {
-      const records = this.storage.getStories();
-      // In local mode, show all stories (admin always)
+      const records = await firstValueFrom(this.storage.getStories());
       this.stories.set(records.map(r => this.mapRecord(r)));
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load stories';
@@ -546,9 +547,8 @@ export class StorySelectComponent implements OnInit {
     }
   }
 
-  selectStory(story: Story): void {
-    // Find the StoredStory to set in shared service
-    const storedStory = this.storage.getStoryById(story.id);
+  async selectStory(story: Story): Promise<void> {
+    const storedStory = await firstValueFrom(this.storage.getStoryById(story.id));
     if (storedStory) {
       this.sharedStoryService.selectStoryDirect(storedStory);
     }

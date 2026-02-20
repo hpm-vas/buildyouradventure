@@ -1,5 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { LocalStorageService, StoredStory } from './local-storage.service';
+import { firstValueFrom } from 'rxjs';
+import { StoredStory } from './local-storage.service';
+import { StoryStorageService } from './story-storage.service';
 
 /**
  * Shared story state service - manages the currently selected story
@@ -9,7 +11,7 @@ import { LocalStorageService, StoredStory } from './local-storage.service';
   providedIn: 'root'
 })
 export class SharedStoryService {
-  private readonly localStorage = inject(LocalStorageService);
+  private readonly storage = inject(StoryStorageService);
 
   // Current story state
   private readonly _currentStory = signal<StoredStory | null>(null);
@@ -25,7 +27,7 @@ export class SharedStoryService {
    * Select a story by ID
    */
   async selectStory(storyId: string): Promise<void> {
-    const story = this.localStorage.getStoryById(storyId);
+    const story = await firstValueFrom(this.storage.getStoryById(storyId));
     if (story) {
       this._currentStory.set(story);
     } else {

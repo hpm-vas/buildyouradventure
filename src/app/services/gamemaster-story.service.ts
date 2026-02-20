@@ -1,5 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { LocalStorageService, StoredStory, StoredStoryNode, StoredChoice, StoredStoryEvent, StoredEmotionCard } from './local-storage.service';
+import { firstValueFrom } from 'rxjs';
+import { StoryStorageService } from './story-storage.service';
+import { LocalStorageService, StoredStory, StoredStoryNode, StoredChoice, StoredStoryEvent } from './local-storage.service';
 import { InteractionType, DiceConfig, DiceResult } from '../models/story.model';
 
 /**
@@ -119,7 +121,7 @@ export interface StoryNodeWithChoices {
 
 /**
  * Service for managing story content in the gamemaster panel
- * Uses LocalStorage for persistence (no backend required)
+ * Uses StoryStorageService for persistence (API or LocalStorage)
  */
 
 /** Placeholder text used for dummy/incomplete nodes */
@@ -129,7 +131,7 @@ export const PLACEHOLDER_TEXT = '<!-- Placeholder node - add content -->';
   providedIn: 'root'
 })
 export class GamemasterStoryService {
-  private readonly storage = inject(LocalStorageService);
+  private readonly storage = inject(StoryStorageService);
 
   // Current story context
   private _currentStory = signal<StoryRecord | null>(null);
@@ -173,8 +175,8 @@ export class GamemasterStoryService {
    * Check if a story has only a start node (no other nodes)
    * This allows the story to be deleted completely.
    */
-  hasOnlyStartNode(storyId: string): boolean {
-    const nodes = this.storage.getNodesByStoryId(storyId);
+  async hasOnlyStartNode(storyId: string): Promise<boolean> {
+    const nodes = await firstValueFrom(this.storage.getNodesByStoryId(storyId));
     console.log('hasOnlyStartNode check for', storyId, '- nodes:', nodes.length, nodes);
     // A story can be deleted if it has exactly one node (the start node)
     return nodes.length === 1;
@@ -262,15 +264,15 @@ export class GamemasterStoryService {
   /**
    * Convert stored event to record format with resolved node title and card labels
    */
-  private toEventRecord(e: StoredStoryEvent, storyId: string): StoryEventRecord {
+  private async toEventRecord(e: StoredStoryEvent, storyId: string): Promise<StoryEventRecord> {
     // Resolve node title
-    const node = this.storage.getNodeByKey(storyId, e.nodeKey);
+    const node = await firstValueFrom(this.storage.getNodeByKey(storyId, e.nodeKey));
     const nodeTitle = node?.title || undefined;
 
     // Resolve card labels if cards were selected
     let selectedCardLabels: string[] | undefined;
     if (e.selectedCards && e.selectedCards.length > 0) {
-      selectedCardLabels = this.resolveCardLabels(e.selectedCards);
+      selectedCardLabels = await this.resolveCardLabels(e.selectedCards);
     }
 
     return {
@@ -291,12 +293,12 @@ export class GamemasterStoryService {
   /**
    * Resolve emotion card IDs to their labels
    */
-  private resolveCardLabels(cardIds: string[]): string[] {
+  private async resolveCardLabels(cardIds: string[]): Promise<string[]> {
     const labels: string[] = [];
     // Get all card decks and cards
-    const decks = this.storage.getCardDecks();
+    const decks = await firstValueFrom(this.storage.getCardDecks());
     for (const deck of decks) {
-      const cards = this.storage.getEmotionCardsByDeckId(deck.id);
+      const cards = await firstValueFrom(this.storage.getEmotionCardsByDeckId(deck.id));
       for (const card of cards) {
         if (cardIds.includes(card.id)) {
           labels.push(card.label);
@@ -314,8 +316,9 @@ export class GamemasterStoryService {
     this._error.set(null);
 
     try {
-      console.log('loadStories: fetching from localStorage...');
-      const stories = this.storage.getStories().map(s => this.toStoryRecord(s));
+      console.log('loadStories: fetching from storageService...');
+      const storedStories = await firstValueFrom(this.storage.getStories());
+      const stories = storedStories.map(s => this.toStoryRecord(s));
       console.log('loadStories: received', stories.length, 'stories');
       this._stories.set(stories);
     } catch (e) {
@@ -333,7 +336,7 @@ export class GamemasterStoryService {
   async selectStory(storyId: string): Promise<void> {
     console.log('GamemasterStoryService.selectStory called with id:', storyId);
     try {
-      const stored = this.storage.getStoryById(storyId);
+      const stored = await firstValueFrom(this.storage.getStoryById(storyId));
       if (!stored) {
         throw new Error('Story not found');
       }
@@ -368,25 +371,19 @@ export class GamemasterStoryService {
         throw new Error('Start node content is required');
       }
 
-      // Create the story
-      const storedStory = this.storage.createStory(name, description);
-      const story = this.toStoryRecord(storedStory);
+      // Create the story and start node
+      const result = await firstValueFrom(this.storage.createStoryWithStartNode(
+        name,
+        description,
+        {
+          title: startNodeData.title || 'Beginning',
+          text: startNodeData.text
+        }
+      ));
+      
+      const story = this.toStoryRecord(result.story);
 
       console.log('Created story:', story);
-
-      // Create start node
-      this.storage.createNode({
-        storyId: story.id,
-        nodeKey: 'start',
-        title: startNodeData.title || 'Beginning',
-        text: startNodeData.text,
-        media: null,
-        isStart: true,
-        interactionType: null,
-        diceConfig: null,
-        cardDeckId: null
-      });
-
       console.log('Created start node for story:', story.id);
 
       this._stories.update(list => [story, ...list]);
@@ -406,15 +403,16 @@ export class GamemasterStoryService {
    * Delete a story entirely. Can only be done when the story has only a start node.
    * @returns true if deletion was successful, false otherwise
    */
-  deleteStory(storyId: string): boolean {
+  async deleteStory(storyId: string): Promise<boolean> {
     // Guard: only allow deletion if story has only a start node
-    if (!this.hasOnlyStartNode(storyId)) {
+    const canDelete = await this.hasOnlyStartNode(storyId);
+    if (!canDelete) {
       console.warn('Cannot delete story: has more than just a start node');
       return false;
     }
 
     try {
-      this.storage.deleteStory(storyId);
+      await firstValueFrom(this.storage.deleteStory(storyId));
       this._stories.update(list => list.filter(s => s.id !== storyId));
       
       // Clear current story if it was the one deleted
@@ -443,7 +441,7 @@ export class GamemasterStoryService {
     console.log('[DEPRECATED] createStory called - use createStoryWithStartNode instead');
 
     try {
-      const stored = this.storage.createStory(name, description || '');
+      const stored = await firstValueFrom(this.storage.createStory(name, description || '', 'Start of story'));
       const story = this.toStoryRecord(stored);
 
       this._stories.update(list => [story, ...list]);
@@ -463,7 +461,7 @@ export class GamemasterStoryService {
    * Toggle publish status of the current story
    * @returns true if toggle was successful
    */
-  togglePublish(): boolean {
+  async togglePublish(): Promise<boolean> {
     const story = this._currentStory();
     if (!story) {
       console.warn('Cannot toggle publish: no story selected');
@@ -472,7 +470,7 @@ export class GamemasterStoryService {
 
     try {
       const newPublishState = !story.is_published;
-      const updated = this.storage.updateStory(story.id, { isPublished: newPublishState });
+      const updated = await firstValueFrom(this.storage.updateStory(story.id, { isPublished: newPublishState }));
       
       if (updated) {
         const updatedRecord = this.toStoryRecord(updated);
@@ -511,7 +509,7 @@ export class GamemasterStoryService {
     if (!storyId) return;
 
     try {
-      this.storage.clearEventsForStory(storyId);
+      await firstValueFrom(this.storage.clearEventsForStory(storyId));
       this._events.set([]);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to clear history';
@@ -537,9 +535,14 @@ export class GamemasterStoryService {
     this._error.set(null);
 
     try {
-      const nodes = this.storage.getNodesByStoryId(storyId).map(n => this.toNodeRecord(n));
-      const choices = this.storage.getChoicesByStoryId(storyId).map(c => this.toChoiceRecord(c));
-      const events = this.storage.getEventsByStoryId(storyId).map(e => this.toEventRecord(e, storyId));
+      const storedNodes = await firstValueFrom(this.storage.getNodesByStoryId(storyId));
+      const nodes = storedNodes.map(n => this.toNodeRecord(n));
+      
+      const storedChoices = await firstValueFrom(this.storage.getChoicesByStoryId(storyId));
+      const choices = storedChoices.map(c => this.toChoiceRecord(c));
+      
+      const storedEvents = await firstValueFrom(this.storage.getEventsByStoryId(storyId));
+      const events = await Promise.all(storedEvents.map(e => this.toEventRecord(e, storyId)));
 
       this._nodes.set(nodes);
       this._choices.set(choices);
@@ -560,7 +563,7 @@ export class GamemasterStoryService {
     const storyId = this._currentStory()?.id;
     if (!storyId) return null;
     
-    const stored = this.storage.getNodeByKey(storyId, nodeKey);
+    const stored = await firstValueFrom(this.storage.getNodeByKey(storyId, nodeKey));
     return stored ? this.toNodeRecord(stored) : null;
   }
 
@@ -568,7 +571,8 @@ export class GamemasterStoryService {
    * Get choices for a specific node
    */
   async getChoicesForNode(nodeId: string): Promise<ChoiceRecord[]> {
-    return this.storage.getChoicesByNodeId(nodeId).map(c => this.toChoiceRecord(c));
+    const choices = await firstValueFrom(this.storage.getChoicesByNodeId(nodeId));
+    return choices.map(c => this.toChoiceRecord(c));
   }
 
   // =====================
@@ -589,17 +593,21 @@ export class GamemasterStoryService {
     this._error.set(null);
 
     try {
-      const stored = this.storage.createNode({
-        storyId: storyId,
+      const stored = await firstValueFrom(this.storage.createNode(storyId, {
         nodeKey: data.node_key,
         title: data.title || '',
         text: data.text,
-        media: data.media?.[0] || null,
-        isStart: data.is_start ?? false,
-        interactionType: data.interaction_type || null,
-        diceConfig: data.dice_config || null,
-        cardDeckId: data.card_deck_id || null
-      });
+        media: data.media?.[0] ?? undefined,
+        interactionType: data.interaction_type ?? undefined,
+        diceConfig: data.dice_config ?? undefined,
+        cardDeckId: data.card_deck_id ?? undefined
+      }));
+
+      // If this node should be the start node, update it after creation
+      if (data.is_start) {
+        await firstValueFrom(this.storage.updateNode(stored.id, { isStart: true }));
+        stored.isStart = true;
+      }
 
       const node = this.toNodeRecord(stored);
       this._nodes.update(nodes => [...nodes, node]);
@@ -648,7 +656,7 @@ export class GamemasterStoryService {
       if (data.dice_config !== undefined) updates.diceConfig = data.dice_config;
       if (data.card_deck_id !== undefined) updates.cardDeckId = data.card_deck_id;
 
-      const stored = this.storage.updateNode(id, updates);
+      const stored = await firstValueFrom(this.storage.updateNode(id, updates));
       if (!stored) {
         throw new Error('Node not found');
       }
@@ -676,7 +684,7 @@ export class GamemasterStoryService {
     this._error.set(null);
 
     try {
-      this.storage.deleteNode(id);
+      await firstValueFrom(this.storage.deleteNode(id));
 
       // Update local state (choices cascade delete on server)
       this._nodes.update(nodes => nodes.filter(n => n.id !== id));
@@ -701,7 +709,7 @@ export class GamemasterStoryService {
 
     try {
       // Set new start node (storage handles clearing old start automatically)
-      const stored = this.storage.updateNode(nodeId, { isStart: true });
+      const stored = await firstValueFrom(this.storage.updateNode(nodeId, { isStart: true }));
       if (!stored) {
         throw new Error('Node not found');
       }
@@ -740,15 +748,14 @@ export class GamemasterStoryService {
         await this.createDummyNode(data.next_node);
       }
 
-      const stored = this.storage.createChoice({
-        nodeId: data.node_id,
+      const stored = await firstValueFrom(this.storage.createChoice(data.node_id, {
         text: data.text,
         nextNode: data.next_node,
         type: data.type,
         placeholder: data.placeholder,
         emotionalHint: data.emotional_hint,
         diceConfig: data.dice_config
-      });
+      }));
 
       const choice = this.toChoiceRecord(stored);
       this._choices.update(choices => [...choices, choice]);
@@ -789,7 +796,7 @@ export class GamemasterStoryService {
       if (data.emotional_hint !== undefined) updates.emotionalHint = data.emotional_hint;
       if (data.dice_config !== undefined) updates.diceConfig = data.dice_config;
 
-      const stored = this.storage.updateChoice(id, updates);
+      const stored = await firstValueFrom(this.storage.updateChoice(id, updates));
       if (!stored) {
         throw new Error('Choice not found');
       }
@@ -817,7 +824,7 @@ export class GamemasterStoryService {
     this._error.set(null);
 
     try {
-      this.storage.deleteChoice(id);
+      await firstValueFrom(this.storage.deleteChoice(id));
 
       // Update local state
       this._choices.update(choices => choices.filter(c => c.id !== id));

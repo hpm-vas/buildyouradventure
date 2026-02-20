@@ -1,9 +1,11 @@
 import { Injectable, signal, inject, computed } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { 
   StoryNode, StoryEvent, Story, Choice, Media, 
   EmotionCard, CardDeck, DiceConfig, DiceResult, InteractionType 
 } from '../models/story.model';
-import { LocalStorageService } from './local-storage.service';
+import { StoryStorageService } from './story-storage.service';
+import { StoredChoice } from './local-storage.service';
 
 /**
  * Service for managing story state and progression
@@ -13,7 +15,7 @@ import { LocalStorageService } from './local-storage.service';
   providedIn: 'root'
 })
 export class StoryService {
-  private storage = inject(LocalStorageService);
+  private storage = inject(StoryStorageService);
 
   // Current story context
   private _currentStory = signal<Story | null>(null);
@@ -80,7 +82,7 @@ export class StoryService {
   });
 
   constructor() {
-    console.log('StoryService initialized (LocalStorage mode)');
+    console.log('StoryService initialized (Storage abstraction mode)');
   }
 
   /**
@@ -88,8 +90,8 @@ export class StoryService {
    * If no events, return start node. Otherwise, follow the last choice's nextNode.
    * For dice-based choices, uses successNode/failureNode based on the stored result.
    */
-  private getCurrentNodeKey(storyId: string): string {
-    const events = this.storage.getEventsByStoryId(storyId);
+  private async getCurrentNodeKey(storyId: string, allChoices: StoredChoice[]): Promise<string> {
+    const events = await firstValueFrom(this.storage.getEventsByStoryId(storyId));
     if (events.length === 0) {
       return 'start';
     }
@@ -97,7 +99,7 @@ export class StoryService {
     // Get the last event that has a choice
     const lastChoiceEvent = [...events].reverse().find(e => e.choiceId);
     if (lastChoiceEvent) {
-      const choice = this.storage.getChoiceById(lastChoiceEvent.choiceId!);
+      const choice = allChoices.find(c => c.id === lastChoiceEvent.choiceId);
       if (choice) {
         // Check for dice-based branching
         if (choice.diceConfig?.successThreshold && lastChoiceEvent.diceResult) {
@@ -127,7 +129,7 @@ export class StoryService {
 
     try {
       // Get story
-      const storedStory = this.storage.getStoryById(storyId);
+      const storedStory = await firstValueFrom(this.storage.getStoryById(storyId));
       if (!storedStory) {
         throw new Error('Story not found');
       }
@@ -142,16 +144,19 @@ export class StoryService {
         updatedAt: new Date(storedStory.updated)
       });
 
+      // Fetch all choices for story to resolve branching
+      const allChoices = await firstValueFrom(this.storage.getChoicesByStoryId(storyId));
+
       // Get current node key
-      const currentNodeKey = this.getCurrentNodeKey(storyId);
-      const storedNode = this.storage.getNodeByKey(storyId, currentNodeKey);
+      const currentNodeKey = await this.getCurrentNodeKey(storyId, allChoices);
+      const storedNode = await firstValueFrom(this.storage.getNodeByKey(storyId, currentNodeKey));
       
       if (!storedNode) {
         throw new Error(`Node "${currentNodeKey}" not found`);
       }
 
       // Get choices for this node
-      const storedChoices = this.storage.getChoicesByNodeId(storedNode.id);
+      const storedChoices = await firstValueFrom(this.storage.getChoicesByNodeId(storedNode.id));
 
       // Map to StoryNode
       const node: StoryNode = {
@@ -179,7 +184,7 @@ export class StoryService {
 
       // Get emotion cards if node has a card deck
       if (storedNode.cardDeckId) {
-        const cards = this.storage.getEmotionCardsByDeckId(storedNode.cardDeckId);
+        const cards = await firstValueFrom(this.storage.getEmotionCardsByDeckId(storedNode.cardDeckId));
         this._availableCards.set(cards.map(c => ({
           id: c.id,
           deckId: c.deckId,
@@ -191,10 +196,9 @@ export class StoryService {
         })));
       } else {
         // Use global deck if no specific deck
-        const globalDeck = this.storage.getGlobalDeck();
+        const globalDeck = await firstValueFrom(this.storage.getGlobalDeck());
         if (globalDeck) {
-          const cards = this.storage.getEmotionCardsByDeckId(globalDeck.id);
-          this._availableCards.set(cards.map(c => ({
+          this._availableCards.set(globalDeck.cards.map(c => ({
             id: c.id,
             deckId: c.deckId,
             label: c.label,
@@ -209,12 +213,12 @@ export class StoryService {
       }
 
       // Get events history
-      const storedEvents = this.storage.getEventsByStoryId(storyId);
+      const storedEvents = await firstValueFrom(this.storage.getEventsByStoryId(storyId));
       const events: StoryEvent[] = storedEvents.map(ev => {
         // Get choice text if choice was made
         let choiceText: string | undefined;
         if (ev.choiceId) {
-          const choice = this.storage.getChoiceById(ev.choiceId);
+          const choice = allChoices.find(c => c.id === ev.choiceId);
           choiceText = choice?.text;
         }
         return {
@@ -311,15 +315,14 @@ export class StoryService {
       }
 
       // Create event
-      this.storage.createEvent({
-        storyId: storyId,
+      await firstValueFrom(this.storage.createEvent(storyId, {
         nodeKey: currentNode.nodeKey,
         choiceId: choiceId || null,
         choiceText: choiceText,
         selectedCards: this._selectedCards().length > 0 ? this._selectedCards() : null,
         freeText: this._freeText().trim() || null,
         diceResult: this._diceResult()
-      });
+      }));
 
       // Reload the context to get new state
       await this.loadStoryContext(storyId);
@@ -349,7 +352,7 @@ export class StoryService {
     if (!storyId) return;
 
     try {
-      this.storage.clearEventsForStory(storyId);
+      await firstValueFrom(this.storage.clearEventsForStory(storyId));
       await this.loadStoryContext(storyId);
       console.log('Story reset');
     } catch (err: any) {

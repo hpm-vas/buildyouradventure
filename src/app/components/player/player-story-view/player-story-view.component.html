@@ -1,0 +1,283 @@
+<div class="player-story-container">
+  <!-- Header -->
+  <header class="story-header">
+    <button class="btn-back" (click)="leaveStory()">
+      ← Leave Story
+    </button>
+    <div class="header-center">
+      @if (storyService.currentStory(); as story) {
+        <h1>{{ story.name }}</h1>
+      }
+    </div>
+    <div class="header-actions">
+      <button 
+        class="btn-icon" 
+        [class.active]="showHistory()"
+        (click)="toggleHistory()"
+        title="Show journey history">
+        📜
+      </button>
+    </div>
+  </header>
+
+  <div class="story-layout">
+    <!-- Main Content -->
+    <main class="story-main">
+      @if (storyService.loading()) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading...</p>
+        </div>
+      } @else if (storyService.error()) {
+        <div class="error-state">
+          <span class="error-icon">⚠️</span>
+          <p>{{ storyService.error() }}</p>
+          <button class="btn-retry" (click)="storyService.loadStoryContext(storyService.currentStory()!.id)">
+            Try Again
+          </button>
+        </div>
+      } @else if (currentNode()) {
+        <!-- Story Content -->
+        <article class="story-content">
+          @if (currentNode()!.title) {
+            <h2 class="node-title">{{ currentNode()!.title }}</h2>
+          }
+          
+          <div class="node-text" [innerHTML]="renderedContent()"></div>
+
+          <!-- Media -->
+          @if (currentNode()!.media) {
+            <div class="node-media">
+              @if (currentNode()!.media!.type === 'image') {
+                <img [src]="currentNode()!.media!.url" [alt]="currentNode()!.media!.alt || 'Story image'" />
+              } @else if (currentNode()!.media!.type === 'audio') {
+                <audio controls [src]="currentNode()!.media!.url"></audio>
+              }
+            </div>
+          }
+        </article>
+
+        <!-- Interaction Panel -->
+        <section class="interaction-panel">
+          @if (isEnding()) {
+            <!-- Story Ending -->
+            <div class="story-ending">
+              <span class="ending-icon">🏁</span>
+              <h3>The End</h3>
+              <p>This adventure has concluded.</p>
+              <div class="ending-actions">
+                <button class="btn-secondary" (click)="resetStory()">
+                  🔄 Start Over
+                </button>
+                <button class="btn-primary" (click)="leaveStory()">
+                  ← Back to Adventures
+                </button>
+              </div>
+            </div>
+          } @else {
+            <!-- Emotion Cards -->
+            @if (storyService.requiresCards() && storyService.availableCards().length > 0) {
+              <div class="interaction-section">
+                <app-emotion-cards
+                  [cards]="storyService.availableCards()"
+                  [selectedIds]="localSelectedCards()"
+                  [minSelect]="1"
+                  [maxSelect]="3"
+                  label="How does your character feel?"
+                  [disabled]="storyService.loading()"
+                  (selectionChange)="onCardsSelected($event)"
+                />
+              </div>
+            }
+
+            <!-- Node-level Dice Roll -->
+            @if (storyService.requiresDice() && currentNode()!.diceConfig && !selectedChoice()?.diceConfig) {
+              <div class="interaction-section">
+                <h4 class="section-label">Roll the dice</h4>
+                <app-dice-roller
+                  [config]="currentNode()!.diceConfig!"
+                  [result]="localDiceResult()"
+                  [disabled]="storyService.loading()"
+                  (rolled)="onDiceRolled($event)"
+                />
+              </div>
+            }
+
+            <!-- Free Text (standalone, not for choice types) -->
+            @if (storyService.requiresText() && !storyService.hasChoices()) {
+              <div class="interaction-section">
+                <app-free-text-input
+                  [value]="localFreeText()"
+                  label="Your response"
+                  placeholder="Write your character's response..."
+                  [disabled]="storyService.loading()"
+                  (valueChange)="onTextChanged($event)"
+                />
+              </div>
+            }
+
+            <!-- Choices -->
+            @if (storyService.hasChoices() && currentNode()!.choices.length > 0) {
+              <div class="interaction-section choices-section">
+                <h4 class="section-label">Choose your action</h4>
+                <div class="choices-list">
+                  @for (choice of currentNode()!.choices; track choice.id) {
+                    @if (choice.type === 'freetext') {
+                      <!-- Freetext Choice -->
+                      <div 
+                        class="choice-card choice-freetext"
+                        [class.selected]="isChoiceSelected(choice.id)">
+                        <div class="choice-header" (click)="selectChoice(choice)">
+                          <span class="choice-radio">
+                            @if (isChoiceSelected(choice.id)) { ● } @else { ○ }
+                          </span>
+                          <span class="choice-text">{{ choice.text }}</span>
+                        </div>
+                        @if (isChoiceSelected(choice.id)) {
+                          <div class="choice-freetext-input">
+                            <app-free-text-input
+                              [value]="getFreetextChoiceValue(choice.id)"
+                              [placeholder]="choice.placeholder || 'Enter your response...'"
+                              [disabled]="storyService.loading()"
+                              (valueChange)="onFreetextChoiceChange(choice.id, $event)"
+                            />
+                          </div>
+                        }
+                      </div>
+                    } @else {
+                      <!-- Standard Button Choice -->
+                      <button 
+                        class="choice-card"
+                        [class.selected]="isChoiceSelected(choice.id)"
+                        [class.has-dice]="choice.diceConfig"
+                        [disabled]="storyService.loading()"
+                        (click)="selectChoice(choice)">
+                        <span class="choice-radio">
+                          @if (isChoiceSelected(choice.id)) { ● } @else { ○ }
+                        </span>
+                        @if (choice.diceConfig) {
+                          <span class="dice-indicator">🎲</span>
+                        }
+                        <span class="choice-content">
+                          @if (choice.emotionalHint) {
+                            <span class="emotional-hint">{{ choice.emotionalHint }}</span>
+                          }
+                          <span class="choice-text">{{ choice.text }}</span>
+                        </span>
+                      </button>
+                    }
+                  }
+                </div>
+
+                <!-- Choice-level Dice Roll (when a choice with dice is selected) -->
+                @if (selectedChoice()?.diceConfig; as diceConfig) {
+                  <div class="choice-dice-section">
+                    <h4 class="section-label">Roll for "{{ selectedChoice()?.text }}"</h4>
+                    <app-dice-roller
+                      [config]="diceConfig"
+                      [result]="localDiceResult()"
+                      [disabled]="storyService.loading()"
+                      (rolled)="onDiceRolled($event)"
+                    />
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Submit Button -->
+            <div class="submit-section">
+              <button 
+                class="btn-submit"
+                [disabled]="!canSubmit() || storyService.loading()"
+                (click)="submit()">
+                @if (storyService.loading()) {
+                  <span class="spinner-small"></span>
+                  Submitting...
+                } @else {
+                  Continue →
+                }
+              </button>
+              @if (!canSubmit()) {
+                <p class="submit-hint">
+                  @if (storyService.requiresCards() && localSelectedCards().length === 0) {
+                    Select at least one emotion card
+                  } @else if (storyService.hasChoices() && !selectedChoice()) {
+                    Select an action to continue
+                  } @else if (selectedChoice()?.diceConfig && !localDiceResult()) {
+                    Roll the dice to continue
+                  } @else if (storyService.requiresDice() && !localDiceResult()) {
+                    Roll the dice to continue
+                  } @else if (storyService.requiresText() && !localFreeText().trim()) {
+                    Enter your response to continue
+                  } @else if (selectedChoice()?.type === 'freetext' && !getFreetextChoiceValue(selectedChoice()!.id)) {
+                    Enter text for your choice
+                  }
+                </p>
+              }
+            </div>
+          }
+        </section>
+      } @else {
+        <div class="no-content">
+          <span class="no-content-icon">📭</span>
+          <p>No story content available.</p>
+          <button class="btn-secondary" (click)="leaveStory()">
+            ← Back to Adventures
+          </button>
+        </div>
+      }
+    </main>
+
+    <!-- History Sidebar -->
+    @if (showHistory()) {
+      <aside class="history-sidebar">
+        <div class="history-header">
+          <h3>Your Journey</h3>
+          <button class="btn-close" (click)="toggleHistory()">✕</button>
+        </div>
+        <div class="history-content">
+          @if (storyService.storyHistory().length > 0) {
+            <div class="history-timeline">
+              @for (event of storyService.storyHistory(); track event.id; let i = $index) {
+                <div class="history-entry">
+                  <span class="entry-number">{{ i + 1 }}</span>
+                  <div class="entry-details">
+                    <span class="entry-node">{{ event.nodeKey }}</span>
+                    @if (event.choiceText) {
+                      <span class="entry-choice">→ {{ event.choiceText }}</span>
+                    }
+                    @if (event.selectedCards && event.selectedCards.length > 0) {
+                      <span class="entry-cards">
+                        🎴 @for (cardId of event.selectedCards; track cardId; let last = $last) {
+                          {{ getCardLabel(cardId) }}{{ last ? '' : ', ' }}
+                        }
+                      </span>
+                    }
+                    @if (event.diceResult) {
+                      <span class="entry-dice" [class.success]="event.diceResult.success" [class.failure]="event.diceResult.success === false">
+                        🎲 {{ event.diceResult.finalTotal }}
+                        @if (event.diceResult.success !== undefined) {
+                          {{ event.diceResult.success ? '✓' : '✗' }}
+                        }
+                      </span>
+                    }
+                    @if (event.freeText) {
+                      <span class="entry-text">"{{ event.freeText | slice:0:80 }}{{ event.freeText.length > 80 ? '...' : '' }}"</span>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="history-empty">Your journey begins here...</p>
+          }
+        </div>
+        <div class="history-footer">
+          <button class="btn-reset" (click)="resetStory()">
+            🔄 Restart Story
+          </button>
+        </div>
+      </aside>
+    }
+  </div>
+</div>

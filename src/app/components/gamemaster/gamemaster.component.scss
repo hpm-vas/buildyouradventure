@@ -508,6 +508,33 @@
     gap: 1rem;
   }
 
+  .publish-wrapper {
+    .btn-publish {
+      padding: 0.5rem 1rem;
+      background: transparent;
+      border: 2px solid #4caf50;
+      border-radius: 6px;
+      color: #4caf50;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(76, 175, 80, 0.15);
+      }
+
+      &.published {
+        background: #4caf50;
+        color: #fff;
+
+        &:hover {
+          background: #43a047;
+        }
+      }
+    }
+  }
+
   .delete-story-wrapper {
     position: relative;
     display: inline-block;

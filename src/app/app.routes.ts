@@ -26,5 +26,10 @@ export const routes: Routes = [
     loadComponent: () => import('./components/player/player.component').then(m => m.PlayerComponent),
     canActivate: [roleGuard('player')]
   },
+  {
+    path: 'player/story/:storyId',
+    loadComponent: () => import('./components/player/player-story-view/player-story-view.component').then(m => m.PlayerStoryViewComponent),
+    canActivate: [roleGuard('player')]
+  },
   { path: '**', redirectTo: '/' }
 ];

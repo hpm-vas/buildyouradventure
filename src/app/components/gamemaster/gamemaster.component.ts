@@ -456,6 +456,13 @@ export class GamemasterComponent implements OnInit {
     }
   }
 
+  /**
+   * Toggle publish status of the current story
+   */
+  togglePublish(): void {
+    this.storyService.togglePublish();
+  }
+
   navigateToEventNode(event: StoryEventRecord): void {
     // Find the node by nodeKey and select it
     const node = this.storyService.nodes().find(n => n.node_key === event.nodeKey);

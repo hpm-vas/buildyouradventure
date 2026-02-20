@@ -1,0 +1,77 @@
+<div class="player-container">
+  <!-- Header -->
+  <header class="player-header">
+    <div class="header-content">
+      <h1>📖 Plot-smithy</h1>
+      <span class="subtitle">Choose Your Adventure</span>
+    </div>
+    <button class="btn-secondary" (click)="switchRole()">
+      ← Switch Role
+    </button>
+  </header>
+
+  <!-- Main Content -->
+  <main class="player-main">
+    <!-- Search Bar -->
+    <div class="search-section">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input 
+          type="text" 
+          placeholder="Search adventures..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+        />
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading adventures...</p>
+      </div>
+    } @else {
+      <!-- Story Grid -->
+      @if (filteredStories().length > 0) {
+        <div class="stories-grid">
+          @for (story of filteredStories(); track story.id) {
+            <article class="story-card">
+              <div class="story-cover">
+                @if (story.coverImage) {
+                  <img [src]="story.coverImage" [alt]="story.name" />
+                } @else {
+                  <div class="cover-placeholder">
+                    <span>📚</span>
+                  </div>
+                }
+              </div>
+              <div class="story-info">
+                <h3 class="story-title">{{ story.name }}</h3>
+                @if (story.description) {
+                  <p class="story-description">{{ story.description }}</p>
+                }
+              </div>
+              <button class="btn-dive-in" (click)="diveIn(story)">
+                Dive in →
+              </button>
+            </article>
+          }
+        </div>
+      } @else {
+        <!-- Empty State -->
+        <div class="empty-state">
+          @if (searchQuery()) {
+            <span class="empty-icon">🔍</span>
+            <h2>No adventures found</h2>
+            <p>Try a different search term</p>
+          } @else {
+            <span class="empty-icon">📭</span>
+            <h2>No adventures available yet</h2>
+            <p>Check back later for new stories to explore!</p>
+          }
+        </div>
+      }
+    }
+  </main>
+</div>

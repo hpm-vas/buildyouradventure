@@ -258,6 +258,16 @@ You stand at the edge of an ancient forest. The trees loom tall and twisted, the
     <header class="admin-header">
       <div class="header-left">
         <h2>{{ storyService.currentStory()?.name }}</h2>
+        <div class="publish-wrapper">
+          <button 
+            class="btn-publish"
+            [class.published]="storyService.currentStory()?.is_published"
+            (click)="togglePublish()"
+            [attr.aria-label]="storyService.currentStory()?.is_published ? 'Unpublish story' : 'Publish story for players'"
+          >
+            {{ storyService.currentStory()?.is_published ? '✓ Published' : 'Publish for Players' }}
+          </button>
+        </div>
         <div class="delete-story-wrapper" [class.disabled]="!canDeleteCurrentStory()">
           <button 
             class="btn-delete-story-header"

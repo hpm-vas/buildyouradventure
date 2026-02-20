@@ -460,6 +460,40 @@ export class GamemasterStoryService {
   }
 
   /**
+   * Toggle publish status of the current story
+   * @returns true if toggle was successful
+   */
+  togglePublish(): boolean {
+    const story = this._currentStory();
+    if (!story) {
+      console.warn('Cannot toggle publish: no story selected');
+      return false;
+    }
+
+    try {
+      const newPublishState = !story.is_published;
+      const updated = this.storage.updateStory(story.id, { isPublished: newPublishState });
+      
+      if (updated) {
+        const updatedRecord = this.toStoryRecord(updated);
+        this._currentStory.set(updatedRecord);
+        
+        // Also update in stories list
+        this._stories.update(list =>
+          list.map(s => s.id === story.id ? updatedRecord : s)
+        );
+        
+        console.log('Story publish status toggled to:', newPublishState);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Failed to toggle publish status:', e);
+      return false;
+    }
+  }
+
+  /**
    * Clear story selection
    */
   clearStorySelection(): void {

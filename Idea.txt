@@ -89,6 +89,62 @@ GM Story Management Workflow
 
 • Node Key Scoping: Node keys are unique only within a story, allowing the same key names (e.g., 'intro', 'ending') to be reused across different stories.
 
+Player Story Workflow
+
+• Login/Startup: Upon role selection, the Player is directed to the Story Selection page.
+
+• Story Selection Page (/player):
+  - Displays all published stories as visual tiles showing story name, description, and cover image.
+  - Only stories marked as "published" by the GM are visible to players.
+  - Each story tile displays a "Dive in" button to enter the story.
+  - Provides search/filter functionality to find stories by name or description.
+  - A "Switch Role" option allows returning to the role selection screen.
+
+• Entering a Story:
+  - Upon selection, the Player enters the Story Play View for that story.
+  - A persistent header displays the currently selected story name and provides a "Leave Story" button to return to the Story Selection page.
+  - The main view displays the current story node with:
+    * The GM's narrative text (rendered as Markdown)
+    * Any associated media (images, etc.)
+    * The available interaction options as configured by the GM
+
+• Story Play View (/player/story/:storyId):
+  - Displays the current node's narrative content prominently.
+  - Renders the interaction panel based on the node's configured interaction type:
+    * Choice: Selectable buttons for each available choice
+    * Card + Choice: Emotion card selection followed by choice buttons
+    * Card + Textfield: Emotion card selection with free-text input field
+    * Textfield: Free-text input field only
+    * Optional Dice Roll: Dice roller component when configured on a choice
+  - All interactions are "staged" — selections are made locally without immediate submission.
+  - Player can freely change selections (click different choices, re-select cards, edit text) before committing.
+  - An explicit "Continue" button submits the staged interaction and advances the story.
+  - The "Continue" button is disabled until all required interactions are completed:
+    * Choice-based: A choice must be selected
+    * Card-based: At least one emotion card must be selected
+    * Textfield-based: Text must be entered (non-empty)
+    * Dice-based: Dice must be rolled if required by the selected choice
+
+• Story History:
+  - A toggleable "Story So Far" panel displays the chronological log of the player's journey.
+  - Each history entry shows:
+    * The node's narrative text
+    * The player's recorded response (choice made, cards selected, text entered, dice results)
+  - History scrolls with the oldest entries at the top, most recent at the bottom.
+  - Accessed via a history toggle button in the story header.
+
+• Story Progression:
+  - After submitting an interaction, the story advances to the next node as determined by:
+    * The selected choice's target node (for choice-based interactions)
+    * The default next node (for card+textfield interactions)
+  - The interaction panel resets for the new node's configuration.
+  - Previous interactions are recorded and visible in the Story History.
+
+• Resuming a Story:
+  - If the Player leaves mid-story and returns later, the story resumes from the last submitted position.
+  - Staged (uncommitted) selections are not preserved — only submitted interactions persist.
+  - The Story History reflects all previously submitted interactions.
+
 The Player  
 • Narrative Agency: Participates via GM-defined interactions (choices, optional emotion cards, optional dice rolls, and/or text entry).  
 • Story Selection: Selects which story to view/play at the start of the session/application entry.  
